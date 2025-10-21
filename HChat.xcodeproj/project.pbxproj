@@ -14,9 +14,22 @@
 		31A35F852EA67B3B0036C483 /* HChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3177C1A42EA7CC390026D7F5 /* Exceptions for "HChat" folder in "HChat" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 31A35F842EA67B3B0036C483 /* HChat */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		31A35F872EA67B3B0036C483 /* HChat */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3177C1A42EA7CC390026D7F5 /* Exceptions for "HChat" folder in "HChat" target */,
+			);
 			path = HChat;
 			sourceTree = "<group>";
 		};
@@ -263,6 +276,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HChat/Info.plist;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = talk;
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = view;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -309,6 +323,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HChat/Info.plist;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = talk;
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = view;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

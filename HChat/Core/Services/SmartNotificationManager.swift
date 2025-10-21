@@ -104,15 +104,21 @@ final class SmartNotificationManager {
     
     /// 智能通知（根据优先级和设置）
     func notifyMessage(_ message: ChatMessage, myNick: String) async {
+        DebugLogger.log("🔔 收到消息，准备发送通知: \(message.id) from \(message.sender)", level: .info)
+        
         // 检查是否启用通知
-        guard settings.enabled else { return }
+        guard settings.enabled else {
+            DebugLogger.log("🔕 通知已禁用，跳过", level: .warning)
+            return
+        }
         
         // 确定优先级
         let priority = determinePriority(for: message, myNick: myNick)
+        DebugLogger.log("📊 消息优先级: \(priority)", level: .debug)
         
         // 检查是否应该通知
         guard shouldNotify(priority: priority, channel: message.channel) else {
-            DebugLogger.log("🔕 消息不通知: \(message.id)", level: .debug)
+            DebugLogger.log("🔕 消息不符合通知条件: \(message.id) (优先级: \(priority))", level: .debug)
             return
         }
         
@@ -120,6 +126,7 @@ final class SmartNotificationManager {
         let content = buildNotificationContent(for: message, priority: priority)
         
         // 发送通知
+        DebugLogger.log("📤 准备发送通知到系统...", level: .info)
         await send(content: content, identifier: message.id)
     }
     
@@ -170,21 +177,30 @@ final class SmartNotificationManager {
     func shouldNotify(priority: NotificationPriority, channel: String) -> Bool {
         // 静音频道不通知
         if priority == .silent {
+            DebugLogger.log("🔇 频道已静音: \(channel)", level: .debug)
             return false
         }
         
         // 仅紧急消息模式
         if settings.urgentOnly && priority != .urgent {
+            DebugLogger.log("⚠️ 仅紧急模式，忽略普通消息", level: .debug)
             return false
         }
         
         // 工作时间判断
-        if isWorkingHours() {
+        let isWorking = isWorkingHours()
+        DebugLogger.log("⏰ 工作时间检查: \(isWorking ? "是" : "否")", level: .debug)
+        
+        if isWorking {
             // 工作时间：只通知紧急消息
-            return priority == .urgent
+            let result = priority == .urgent
+            DebugLogger.log("🏢 工作时间，仅通知紧急消息: \(result)", level: .debug)
+            return result
         } else {
             // 非工作时间：通知所有非静音消息
-            return priority != .silent
+            let result = priority != .silent
+            DebugLogger.log("🌙 非工作时间，通知所有非静音消息: \(result)", level: .debug)
+            return result
         }
     }
     
@@ -263,6 +279,23 @@ final class SmartNotificationManager {
     
     /// 发送通知
     private func send(content: UNMutableNotificationContent, identifier: String) async {
+        // 先检查通知权限
+        let notificationSettings = await UNUserNotificationCenter.current().notificationSettings()
+        DebugLogger.log("🔐 通知权限状态: \(notificationSettings.authorizationStatus.rawValue)", level: .info)
+        
+        switch notificationSettings.authorizationStatus {
+        case .notDetermined:
+            DebugLogger.log("⚠️ 通知权限未确定，正在请求...", level: .warning)
+            await requestPermission()
+        case .denied:
+            DebugLogger.log("❌ 通知权限被拒绝！请前往系统设置开启", level: .error)
+            return
+        case .authorized, .provisional, .ephemeral:
+            DebugLogger.log("✅ 通知权限已授予", level: .info)
+        @unknown default:
+            DebugLogger.log("⚠️ 未知的通知权限状态", level: .warning)
+        }
+        
         let request = UNNotificationRequest(
             identifier: identifier,
             content: content,
@@ -271,9 +304,11 @@ final class SmartNotificationManager {
         
         do {
             try await UNUserNotificationCenter.current().add(request)
-            DebugLogger.log("🔔 通知已发送: \(identifier)", level: .info)
+            DebugLogger.log("🎉 通知已成功发送到系统: \(identifier)", level: .info)
+            DebugLogger.log("📱 通知标题: \(content.title)", level: .debug)
+            DebugLogger.log("📱 通知内容: \(content.body)", level: .debug)
         } catch {
-            DebugLogger.log("❌ 发送通知失败: \(error)", level: .error)
+            DebugLogger.log("❌ 发送通知失败: \(error.localizedDescription)", level: .error)
         }
     }
 }

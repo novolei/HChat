@@ -150,9 +150,10 @@ final class MessageHandler {
         let message = ChatMessage(id: msgId, channel: channel, sender: nick, text: text, attachments: attachments)
         state.appendMessage(message)
         
-        // @ 提及通知
-        if text.contains("@\(state.myNick)") {
-            NotificationManager.shared.notifyMention(channel: channel, from: nick, text: text)
+        // ✅ 使用新的智能通知系统
+        Task {
+            // 通知所有消息（智能管理器会判断优先级）
+            await SmartNotificationManager.shared.notifyMessage(message, myNick: state.myNick)
         }
     }
     
