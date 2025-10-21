@@ -81,26 +81,18 @@ struct MessageRowView: View {
                     AttachmentCard(attachment: a)
                 }
                 
-                // ✨ P1: 表情反应气泡
+                // ✨ P1: 表情反应气泡（始终显示在消息下方）
                 if message.hasReactions {
-                    HStack {
-                        if isMyMessage {
-                            Spacer()
+                    ReactionBubblesView(
+                        message: message,
+                        myNick: myNick,
+                        onTapReaction: { emoji in
+                            onReactionTap?(emoji)
+                        },
+                        onShowMore: {
+                            onShowReactionPicker?()
                         }
-                        ReactionBubblesView(
-                            message: message,
-                            myNick: myNick,
-                            onTapReaction: { emoji in
-                                onReactionTap?(emoji)
-                            },
-                            onShowMore: {
-                                onShowReactionPicker?()
-                            }
-                        )
-                        if !isMyMessage {
-                            Spacer()
-                        }
-                    }
+                    )
                 }
                 
                 // ✨ P1: 已读回执指示器
