@@ -29,7 +29,7 @@ final class PresenceManager {
     }
     
     /// 离开检测定时器（5分钟无操作自动设为离开）
-    private var awayTimer: Timer?
+    nonisolated(unsafe) private var awayTimer: Timer?
     private let awayTimeout: TimeInterval = 300 // 5分钟
     
     // MARK: - 初始化
