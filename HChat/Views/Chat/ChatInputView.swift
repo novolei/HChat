@@ -3,7 +3,7 @@
 //  HChat
 //
 //  Created by AI Assistant on 2025/10/21.
-//  聊天输入框视图
+//  ✨ UI优化：现代化聊天输入框，优雅的设计和流畅的交互
 //
 
 import SwiftUI
@@ -13,6 +13,8 @@ struct ChatInputView: View {
     @Binding var inputText: String
     var onSend: () -> Void
     var onAttachment: () -> Void
+    
+    @FocusState private var isInputFocused: Bool
     
     var body: some View {
         VStack(spacing: 0) {
@@ -27,29 +29,85 @@ struct ChatInputView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             
-            HStack(spacing: 8) {
+            // 分隔线
+            Divider()
+                .background(HChatTheme.separator)
+            
+            // 输入区域
+            HStack(alignment: .bottom, spacing: HChatTheme.mediumSpacing) {
+                // 附件按钮
                 Button {
                     onAttachment()
+                    HapticManager.impact(style: .light)
                 } label: {
-                    Image(systemName: "paperclip")
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(HChatTheme.accent)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 
-                TextField("消息（支持 /join /nick /me /clear /help）", text: $inputText, axis: .vertical)
-                    .lineLimit(1...4)
-                    .onSubmit {
-                        onSend()
-                    }
+                // 输入框
+                HStack(alignment: .bottom, spacing: HChatTheme.smallSpacing) {
+                    TextField("输入消息...", text: $inputText, axis: .vertical)
+                        .lineLimit(1...6)
+                        .font(HChatTheme.bodyFont)
+                        .focused($isInputFocused)
+                        .onSubmit {
+                            if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                onSend()
+                            }
+                        }
+                }
+                .padding(.horizontal, HChatTheme.mediumSpacing)
+                .padding(.vertical, HChatTheme.smallSpacing)
+                .background(
+                    RoundedRectangle(cornerRadius: HChatTheme.largeCornerRadius, style: .continuous)
+                        .fill(HChatTheme.tertiaryBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: HChatTheme.largeCornerRadius, style: .continuous)
+                        .stroke(isInputFocused ? HChatTheme.accent.opacity(0.3) : HChatTheme.border, lineWidth: 1.5)
+                )
                 
-                Button("发送") {
+                // 发送按钮
+                Button {
                     onSend()
+                    HapticManager.impact(style: .medium)
+                } label: {
+                    Image(systemName: inputText.isEmpty ? "arrow.up.circle" : "arrow.up.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(
+                            inputText.isEmpty ? HChatTheme.tertiaryText : HChatTheme.accent
+                        )
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
+                .disabled(inputText.isEmpty)
+                .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
             }
-            .padding()
-            .background(.bar)
+            .padding(.horizontal, HChatTheme.largeSpacing)
+            .padding(.vertical, HChatTheme.mediumSpacing)
+            .background(HChatTheme.background)
         }
-        .animation(.easeInOut(duration: 0.2), value: client.replyManager.replyingTo != nil)
+        .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
+    }
+}
+
+// MARK: - 🎯 触觉反馈管理器
+
+enum HapticManager {
+    static func impact(style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        let generator = UIImpactFeedbackGenerator(style: style)
+        generator.impactOccurred()
+    }
+    
+    static func notification(type: UINotificationFeedbackGenerator.FeedbackType) {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(type)
+    }
+    
+    static func selection() {
+        let generator = UISelectionFeedbackGenerator()
+        generator.selectionChanged()
     }
 }
 

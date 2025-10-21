@@ -24,19 +24,28 @@ struct ChatView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // 消息列表
-                ChatMessageListView(client: client, searchText: $searchText)
+            ZStack {
+                // 聊天背景
+                HChatTheme.chatBackground
+                    .ignoresSafeArea()
                 
-                // 输入框
-                ChatInputView(
-                    client: client,
-                    inputText: $inputText,
-                    onSend: sendOnce,
-                    onAttachment: showPhotoPicker
-                )
+                VStack(spacing: 0) {
+                    // 消息列表
+                    ChatMessageListView(client: client, searchText: $searchText)
+                    
+                    // 输入框
+                    ChatInputView(
+                        client: client,
+                        inputText: $inputText,
+                        onSend: sendOnce,
+                        onAttachment: showPhotoPicker
+                    )
+                }
             }
-            .navigationTitle("#\(client.currentChannel)\(client.onlineCountByRoom[client.currentChannel].map { " · \($0) 在线" } ?? "")")
+            .navigationTitle("#\(client.currentChannel)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(HChatTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ChatToolbar(
                     client: client,

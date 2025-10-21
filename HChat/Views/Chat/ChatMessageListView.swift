@@ -3,7 +3,7 @@
 //  HChat
 //
 //  Created by AI Assistant on 2025/10/21.
-//  聊天消息列表视图
+//  ✨ UI优化：现代化消息列表，添加空状态和优雅布局
 //
 
 import SwiftUI
@@ -24,17 +24,52 @@ struct ChatMessageListView: View {
     // 滚动控制
     @State private var shouldAutoScroll = true  // 是否自动滚动到底部
     
+    @FocusState private var isSearchFocused: Bool
+    
     var body: some View {
         VStack(spacing: 0) {
-            // 搜索/过滤
-            TextField("搜索消息 / 过滤 @ 提及", text: $searchText)
-                .textFieldStyle(.roundedBorder)
-                .padding([.top, .horizontal])
+            // 搜索/过滤（现代化设计）
+            HStack(spacing: HChatTheme.mediumSpacing) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(isSearchFocused ? HChatTheme.accent : HChatTheme.tertiaryText)
+                    .font(.system(size: 16))
+                
+                TextField("搜索消息或用户", text: $searchText)
+                    .font(HChatTheme.bodyFont)
+                    .focused($isSearchFocused)
+                
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                        HapticManager.impact(style: .light)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(HChatTheme.tertiaryText)
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, HChatTheme.largeSpacing)
+            .padding(.vertical, HChatTheme.smallSpacing)
+            .background(
+                RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                    .fill(HChatTheme.tertiaryBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                    .stroke(isSearchFocused ? HChatTheme.accent.opacity(0.3) : HChatTheme.border, lineWidth: 1)
+            )
+            .padding(.horizontal, HChatTheme.largeSpacing)
+            .padding(.top, HChatTheme.mediumSpacing)
+            .padding(.bottom, HChatTheme.smallSpacing)
+            .animation(HChatTheme.quickAnimation, value: isSearchFocused)
+            .animation(HChatTheme.quickAnimation, value: searchText.isEmpty)
             
             // 消息列表
             ScrollViewReader { proxy in
-                List {
-                    ForEach(filteredMessages, id: \.id) { m in
+                ZStack {
+                    List {
+                        ForEach(filteredMessages, id: \.id) { m in
                         MessageRowView(
                             message: m,
                             myNick: client.myNick,
@@ -69,9 +104,20 @@ struct ChatMessageListView: View {
                                 client.readReceiptManager.markAsRead(messageId: m.id, channel: m.channel)
                             }
                         }
+                        }
+                    }
+                    .listStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .scrollContentBackground(.hidden)
+                    
+                    // 空状态视图
+                    if filteredMessages.isEmpty {
+                        EmptyChatStateView(
+                            isSearching: !searchText.isEmpty,
+                            channelName: client.currentChannel
+                        )
                     }
                 }
-                .listStyle(.plain)
                 .onChange(of: filteredMessages.count) { oldCount, newCount in
                     // 当有新消息时自动滚动到底部
                     if shouldAutoScroll, newCount > oldCount, let lastMsg = filteredMessages.last {
@@ -131,6 +177,103 @@ struct ChatMessageListView: View {
                 icon: "hand.thumbsup.fill",
                 duration: 2.0
             )
+        }
+    }
+}
+
+// MARK: - 📭 空状态视图
+
+struct EmptyChatStateView: View {
+    let isSearching: Bool
+    let channelName: String
+    
+    var body: some View {
+        VStack(spacing: HChatTheme.extraLargeSpacing) {
+            // 图标
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [HChatTheme.accent.opacity(0.1), HChatTheme.accent.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: isSearching ? "magnifyingglass" : "message.fill")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(HChatTheme.accent.opacity(0.6))
+            }
+            
+            VStack(spacing: HChatTheme.smallSpacing) {
+                Text(isSearching ? "没有找到消息" : "欢迎来到 #\(channelName)")
+                    .font(HChatTheme.smallTitleFont)
+                    .foregroundColor(HChatTheme.primaryText)
+                
+                Text(isSearching ? "尝试使用其他关键词搜索" : "发送第一条消息开始聊天吧！")
+                    .font(HChatTheme.bodyFont)
+                    .foregroundColor(HChatTheme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+            
+            // 提示卡片（仅在非搜索时显示）
+            if !isSearching {
+                VStack(alignment: .leading, spacing: HChatTheme.mediumSpacing) {
+                    HStack(spacing: HChatTheme.smallSpacing) {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundStyle(HChatTheme.warning)
+                        Text("快速提示")
+                            .font(HChatTheme.buttonFont)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: HChatTheme.smallSpacing) {
+                        TipRow(icon: "arrow.turn.down.left", text: "/join 频道名", description: "加入或创建频道")
+                        TipRow(icon: "person.circle", text: "/nick 昵称", description: "更改你的昵称")
+                        TipRow(icon: "face.smiling", text: "长按消息", description: "添加表情反应")
+                    }
+                }
+                .padding(HChatTheme.largeSpacing)
+                .background(
+                    RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                        .fill(HChatTheme.secondaryBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                        .stroke(HChatTheme.border, lineWidth: 1)
+                )
+                .padding(.horizontal, HChatTheme.extraLargeSpacing)
+            }
+        }
+        .padding(HChatTheme.extraLargeSpacing)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - 💡 提示行
+
+struct TipRow: View {
+    let icon: String
+    let text: String
+    let description: String
+    
+    var body: some View {
+        HStack(spacing: HChatTheme.mediumSpacing) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(HChatTheme.accent)
+                .frame(width: 20)
+            
+            Text(text)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(HChatTheme.primaryText)
+            
+            Text("—")
+                .foregroundColor(HChatTheme.tertiaryText)
+            
+            Text(description)
+                .font(HChatTheme.captionFont)
+                .foregroundColor(HChatTheme.secondaryText)
         }
     }
 }

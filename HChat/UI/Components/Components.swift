@@ -25,12 +25,24 @@ struct MessageRowView: View {
         message.sender == myNick
     }
     
-    // 气泡背景颜色
-    private var bubbleColor: Color {
+    // 气泡背景样式（支持渐变）
+    @ViewBuilder
+    private var bubbleBackground: some View {
         if message.sender == "system" {
-            return Color.gray.opacity(0.1)
+            HChatTheme.systemMessageBubble
+        } else if isMyMessage {
+            HChatTheme.myMessageBubble
+        } else {
+            HChatTheme.otherMessageBubble
         }
-        return isMyMessage ? Color.blue : Color.gray.opacity(0.15)
+    }
+    
+    // 气泡文字颜色
+    private var bubbleTextColor: Color {
+        if message.sender == "system" {
+            return HChatTheme.secondaryText
+        }
+        return isMyMessage ? HChatTheme.myMessageText : HChatTheme.otherMessageText
     }
 
     var body: some View {
@@ -70,11 +82,14 @@ struct MessageRowView: View {
 
                 if !message.text.isEmpty {
                     RichText(message: message, myNick: myNick)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(bubbleColor)
-                        .foregroundColor(isMyMessage ? .white : .primary)
-                        .cornerRadius(16)
+                        .padding(.horizontal, HChatTheme.mediumSpacing)
+                        .padding(.vertical, HChatTheme.smallSpacing + 2)
+                        .foregroundColor(bubbleTextColor)
+                        .background(
+                            bubbleBackground
+                                .clipShape(RoundedRectangle(cornerRadius: HChatTheme.largeCornerRadius, style: .continuous))
+                        )
+                        .shadow(color: isMyMessage ? HChatTheme.mediumShadow : HChatTheme.lightShadow, radius: 4, x: 0, y: 2)
                 }
 
                 ForEach(message.attachments) { a in
@@ -225,51 +240,199 @@ struct RichText: View {
 }
 
 
+// MARK: - 📎 附件卡片（优化版）
+
 struct AttachmentCard: View {
     let attachment: Attachment
+    
     var body: some View {
         Group {
             switch attachment.kind {
             case .image:
-                if let url = attachment.getUrl {
-                    AsyncImage(url: url) { ph in
-                        switch ph {
-                        case .empty: ProgressView()
-                        case .success(let img): img.resizable().scaledToFit().cornerRadius(8)
-                        case .failure: Label("图片加载失败", systemImage: "xmark.octagon")
-                        @unknown default: EmptyView()
-                        }
-                    }
-                    .frame(maxHeight: 240)
-                }
+                ImageAttachmentView(attachment: attachment)
             case .video:
-                if let url = attachment.getUrl {
-                    VideoPlayer(player: AVPlayer(url: url)).frame(height: 220)
-                }
+                VideoAttachmentView(attachment: attachment)
             case .audio:
-                if let url = attachment.getUrl {
-                    HStack {
-                        Image(systemName: "waveform").font(.title3)
-                        Link("播放音频：\(attachment.filename)", destination: url)
-                        Spacer()
-                    }
-                    .padding(8)
-                    .background(.ultraThinMaterial).cornerRadius(8)
-                }
+                AudioAttachmentView(attachment: attachment)
             case .file:
-                if let url = attachment.getUrl {
-                    HStack(spacing: 10) {
-                        Image(systemName: "doc.text")
-                        VStack(alignment: .leading) {
-                            Text(attachment.filename)
-                            if let s = attachment.sizeBytes { Text(ByteCountFormatter.string(fromByteCount: s, countStyle: .file)).font(.caption).foregroundStyle(.secondary) }
-                        }
-                        Spacer()
-                        Link("打开", destination: url)
+                FileAttachmentView(attachment: attachment)
+            }
+        }
+    }
+}
+
+// MARK: - 🖼️ 图片附件
+
+struct ImageAttachmentView: View {
+    let attachment: Attachment
+    
+    var body: some View {
+        if let url = attachment.getUrl {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    ZStack {
+                        RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                            .fill(HChatTheme.tertiaryBackground)
+                        ProgressView()
+                            .tint(HChatTheme.accent)
                     }
-                    .padding(8).background(.ultraThinMaterial).cornerRadius(8)
+                    .frame(height: 200)
+                    
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous))
+                        .shadow(color: HChatTheme.lightShadow, radius: 4, x: 0, y: 2)
+                    
+                case .failure:
+                    ZStack {
+                        RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                            .fill(HChatTheme.error.opacity(0.1))
+                            .frame(height: 120)
+                        
+                        VStack(spacing: HChatTheme.smallSpacing) {
+                            Image(systemName: "photo.badge.exclamationmark")
+                                .font(.largeTitle)
+                                .foregroundColor(HChatTheme.error)
+                            Text("图片加载失败")
+                                .font(HChatTheme.captionFont)
+                                .foregroundColor(HChatTheme.secondaryText)
+                        }
+                    }
+                    
+                @unknown default:
+                    EmptyView()
                 }
             }
+            .frame(maxHeight: 300)
+        }
+    }
+}
+
+// MARK: - 🎬 视频附件
+
+struct VideoAttachmentView: View {
+    let attachment: Attachment
+    
+    var body: some View {
+        if let url = attachment.getUrl {
+            VideoPlayer(player: AVPlayer(url: url))
+                .frame(height: 240)
+                .clipShape(RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous))
+                .shadow(color: HChatTheme.lightShadow, radius: 4, x: 0, y: 2)
+        }
+    }
+}
+
+// MARK: - 🎵 音频附件
+
+struct AudioAttachmentView: View {
+    let attachment: Attachment
+    
+    var body: some View {
+        if let url = attachment.getUrl {
+            Link(destination: url) {
+                HStack(spacing: HChatTheme.mediumSpacing) {
+                    ZStack {
+                        Circle()
+                            .fill(HChatTheme.accent.opacity(0.1))
+                            .frame(width: 44, height: 44)
+                        
+                        Image(systemName: "waveform")
+                            .font(.title3)
+                            .foregroundColor(HChatTheme.accent)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: HChatTheme.tinySpacing) {
+                        Text(attachment.filename)
+                            .font(HChatTheme.bodyFont)
+                            .foregroundColor(HChatTheme.primaryText)
+                            .lineLimit(1)
+                        
+                        Text("音频文件")
+                            .font(HChatTheme.captionFont)
+                            .foregroundColor(HChatTheme.secondaryText)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "play.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(HChatTheme.accent)
+                }
+                .padding(HChatTheme.mediumSpacing)
+                .background(HChatTheme.secondaryBackground)
+                .clipShape(RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                        .stroke(HChatTheme.border, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - 📄 文件附件
+
+struct FileAttachmentView: View {
+    let attachment: Attachment
+    
+    private var fileIcon: String {
+        let ext = (attachment.filename as NSString).pathExtension.lowercased()
+        switch ext {
+        case "pdf": return "doc.fill"
+        case "doc", "docx": return "doc.text.fill"
+        case "xls", "xlsx": return "tablecells.fill"
+        case "zip", "rar", "7z": return "doc.zipper"
+        default: return "doc.fill"
+        }
+    }
+    
+    var body: some View {
+        if let url = attachment.getUrl {
+            Link(destination: url) {
+                HStack(spacing: HChatTheme.mediumSpacing) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: HChatTheme.smallCornerRadius, style: .continuous)
+                            .fill(HChatTheme.accent.opacity(0.1))
+                            .frame(width: 44, height: 44)
+                        
+                        Image(systemName: fileIcon)
+                            .font(.title3)
+                            .foregroundColor(HChatTheme.accent)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: HChatTheme.tinySpacing) {
+                        Text(attachment.filename)
+                            .font(HChatTheme.bodyFont)
+                            .foregroundColor(HChatTheme.primaryText)
+                            .lineLimit(2)
+                        
+                        if let size = attachment.sizeBytes {
+                            Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
+                                .font(HChatTheme.captionFont)
+                                .foregroundColor(HChatTheme.secondaryText)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "arrow.down.circle")
+                        .font(.title2)
+                        .foregroundColor(HChatTheme.accent)
+                }
+                .padding(HChatTheme.mediumSpacing)
+                .background(HChatTheme.secondaryBackground)
+                .clipShape(RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                        .stroke(HChatTheme.border, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 }
