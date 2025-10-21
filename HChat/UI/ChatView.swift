@@ -7,7 +7,7 @@
 import SwiftUI
 
 struct ChatView: View {
-    @StateObject var client: HackChatClient
+    @ObservedObject var client: HackChatClient
     @StateObject var callManager = CallManager()
 
     @State private var inputText: String = ""
