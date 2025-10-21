@@ -95,7 +95,17 @@ final class HackChatClient {
     }
 
     private func send(json: [String: Any]) {
-        guard let ws = webSocket else { return }
+        guard let ws = webSocket else { 
+            DebugLogger.log("⚠️ WebSocket 未连接，跳过发送", level: .warning)
+            return 
+        }
+        
+        // ✅ 检查连接状态，避免向已断开的连接发送消息
+        if ws.state != .running {
+            DebugLogger.log("⚠️ WebSocket 未就绪 (state: \(ws.state.rawValue))，跳过发送", level: .warning)
+            return
+        }
+        
         let data = try! JSONSerialization.data(withJSONObject: json)
         
         // 记录发送的消息（隐藏密文内容，只显示类型）
@@ -106,8 +116,15 @@ final class HackChatClient {
         }
         
         ws.send(.data(data)) { error in
-            if let e = error { 
-                DebugLogger.log("❌ WebSocket 发送失败: \(e.localizedDescription)", level: .error)
+            if let e = error {
+                // ✅ TLS 错误或连接断开时，只记录调试日志，不报错
+                if e.localizedDescription.contains("TLS") || 
+                   e.localizedDescription.contains("cancelled") ||
+                   e.localizedDescription.contains("closed") {
+                    DebugLogger.log("🔌 WebSocket 已断开，发送失败（正常）", level: .debug)
+                } else {
+                    DebugLogger.log("❌ WebSocket 发送失败: \(e.localizedDescription)", level: .error)
+                }
             }
         }
     }
@@ -155,6 +172,10 @@ final class HackChatClient {
                    e.localizedDescription.contains("cancelled") {
                     DebugLogger.log("🔌 WebSocket 连接已断开，停止监听", level: .warning)
                     shouldContinue = false
+                    // ✅ 清理 WebSocket 引用，避免后续发送失败
+                    Task { @MainActor in
+                        self.webSocket = nil
+                    }
                 }
             case .success(let msg):
                 switch msg {
