@@ -86,6 +86,12 @@ final class MessageQueue {
             return
         }
         
+        // 检查连接状态
+        guard client.isConnected else {
+            DebugLogger.log("⚠️ WebSocket 未连接，消息将在重连后发送", level: .warning)
+            return
+        }
+        
         // 检查重试次数
         let pending = persistence.getPendingMessages()
         guard let persisted = pending.first(where: { $0.id == message.id }) else {
@@ -98,32 +104,37 @@ final class MessageQueue {
             return
         }
         
-        // 发送消息
-        do {
-            // 调用客户端发送（假设客户端有 sendWithAck 方法）
-            client.sendText(message.text)
-            
-            // 标记为已发送（等待 ACK）
-            try? persistence.updateStatus(messageId: message.id, status: .sent)
-            
-            DebugLogger.log("✅ 消息发送成功: \(message.id)", level: .info)
-            
-            // 延迟移除（等待服务器确认）
-            Task {
-                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5秒后移除
-                try? persistence.removePending(messageId: message.id)
-                updatePendingCount()
-            }
-            
-        } catch {
-            DebugLogger.log("❌ 消息发送失败: \(error)", level: .error)
-            
-            // 增加重试次数
-            try? persistence.incrementRetry(messageId: message.id)
-            
-            // 延迟重试
-            try? await Task.sleep(nanoseconds: retryDelay)
-            await trySend(message)
+        // 构建消息 JSON
+        var json: [String: Any] = [
+            "type": "message",
+            "id": message.id,
+            "room": message.channel,
+            "text": message.text
+        ]
+        
+        // 如果有附件，添加附件信息
+        if let attachment = message.attachments.first {
+            json["attachment"] = [
+                "id": attachment.id,
+                "kind": attachment.kind.rawValue,
+                "filename": attachment.filename,
+                "url": attachment.getUrl?.absoluteString ?? ""
+            ]
+        }
+        
+        // 发送到服务器
+        client.send(json: json)
+        
+        // 标记为已发送（等待 ACK）
+        try? persistence.updateStatus(messageId: message.id, status: .sent)
+        
+        DebugLogger.log("✅ 消息已发送: \(message.id)", level: .info)
+        
+        // 延迟移除（等待服务器确认）
+        Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000) // 5秒后自动移除（未来由 ACK 触发）
+            try? persistence.removePending(messageId: message.id)
+            updatePendingCount()
         }
     }
     

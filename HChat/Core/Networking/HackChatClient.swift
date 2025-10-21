@@ -38,8 +38,16 @@ final class HackChatClient {
     private var messageHandler: MessageHandler!
     private var commandHandler: CommandHandler!
     
+    // MARK: - 消息队列（P0 功能）
+    private(set) var messageQueue: MessageQueue!
+    
     // MARK: - WebSocket
     private var webSocket: URLSessionWebSocketTask?
+    
+    /// 连接状态
+    var isConnected: Bool {
+        webSocket?.state == .running
+    }
     
     // MARK: - 初始化
     init() {
@@ -48,6 +56,8 @@ final class HackChatClient {
         self.commandHandler = CommandHandler(state: state, sendMessage: { [weak self] json in
             self?.send(json: json)
         })
+        self.messageQueue = MessageQueue(client: nil)  // 先初始化为 nil
+        self.messageQueue = MessageQueue(client: self) // 然后设置为 self
     }
     
     // MARK: - 连接管理
@@ -67,6 +77,10 @@ final class HackChatClient {
             DebugLogger.log("🚪 加入频道: \(state.currentChannel)", level: .websocket)
             send(json: ["type": "join", "room": state.currentChannel])
             send(json: ["type": "who", "room": state.currentChannel])
+            
+            // ✨ P0: 重连后重试所有待发送消息
+            DebugLogger.log("🔄 重连后尝试重发待发送消息...", level: .info)
+            await messageQueue.retryAll()
         }
         
         // 周期性刷新在线列表
@@ -93,29 +107,54 @@ final class HackChatClient {
             return
         }
         
-        // 发送普通消息
+        // ✨ P0: 使用消息队列发送（确保可靠送达）
         let id = UUID().uuidString
         state.markMessageAsSent(id: id)
-        DebugLogger.log("📤 本地添加消息 (Local Echo) - ID: \(id), text: \(text.prefix(30))", level: .debug)
-        state.appendMessage(ChatMessage(id: id, channel: state.currentChannel, sender: state.myNick, text: text, isLocalEcho: true))
-        send(json: ["type": "message", "id": id, "room": state.currentChannel, "text": text])
+        
+        // 创建消息对象
+        let message = ChatMessage(
+            id: id,
+            channel: state.currentChannel,
+            sender: state.myNick,
+            text: text,
+            isLocalEcho: true
+        )
+        
+        DebugLogger.log("📤 消息加入队列 - ID: \(id), text: \(text.prefix(30))", level: .debug)
+        
+        // 立即显示在界面（乐观更新）
+        state.appendMessage(message)
+        
+        // 通过队列发送（自动持久化和重试）
+        Task {
+            await messageQueue.send(message)
+        }
     }
     
     func sendAttachment(_ attachment: Attachment) {
+        // ✨ P0: 使用消息队列发送附件
         let msgId = UUID().uuidString
         state.markMessageAsSent(id: msgId)
-        state.appendMessage(ChatMessage(id: msgId, channel: state.currentChannel, sender: state.myNick, text: "", attachments: [attachment], isLocalEcho: true))
-        send(json: [
-            "id": msgId,
-            "channel": state.currentChannel,
-            "nick": state.myNick,
-            "attachment": [
-                "id": attachment.id,
-                "kind": attachment.kind.rawValue,
-                "filename": attachment.filename,
-                "url": attachment.getUrl?.absoluteString ?? ""
-            ]
-        ])
+        
+        // 创建附件消息
+        let message = ChatMessage(
+            id: msgId,
+            channel: state.currentChannel,
+            sender: state.myNick,
+            text: "",
+            attachments: [attachment],
+            isLocalEcho: true
+        )
+        
+        DebugLogger.log("📎 附件消息加入队列 - ID: \(msgId), file: \(attachment.filename)", level: .debug)
+        
+        // 立即显示在界面
+        state.appendMessage(message)
+        
+        // 通过队列发送
+        Task {
+            await messageQueue.send(message)
+        }
     }
     
     /// 修改昵称（用于 UI 调用，会同步到服务器）
@@ -134,9 +173,10 @@ final class HackChatClient {
         }
     }
     
-    // MARK: - 私有方法
+    // MARK: - 内部方法
     
-    private func send(json: [String: Any]) {
+    /// 发送 JSON 消息到 WebSocket（内部使用，供 MessageQueue 调用）
+    internal func send(json: [String: Any]) {
         guard let ws = webSocket else {
             DebugLogger.log("⚠️ WebSocket 未连接，跳过发送", level: .warning)
             return
