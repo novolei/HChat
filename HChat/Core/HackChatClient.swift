@@ -124,14 +124,18 @@ final class HackChatClient {
     func changeNick(_ newNick: String) {
         let trimmedNick = newNick.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedNick.isEmpty else {
-            systemMessage("昵称不能为空")
             return
         }
         
+        let isFirstTimeSetup = myNick == "iOSUser" || myNick.hasPrefix("iOSUser")
         myNick = trimmedNick
         send(json: ["type":"nick", "nick": trimmedNick])
         DebugLogger.log("👤 修改昵称: \(trimmedNick)", level: .websocket)
-        systemMessage("昵称已更新为 \(trimmedNick)")
+        
+        // ✅ 首次设置昵称时显示进入频道的提示
+        if isFirstTimeSetup {
+            systemMessage("\(trimmedNick) 进入 #\(currentChannel)")
+        }
     }
 
     // MARK: - Receive
@@ -232,8 +236,8 @@ final class HackChatClient {
                 messagesByChannel[channel] = messages
             }
             
-            // 显示系统提示
-            systemMessage("\(oldNick) 更名为 \(newNick)")
+            // ✅ 不显示更名通知，保持界面简洁
+            DebugLogger.log("✅ 昵称变更通知已处理: \(oldNick) → \(newNick)", level: .debug)
             return
         }
 
@@ -247,6 +251,17 @@ final class HackChatClient {
             appendMessage(ChatMessage(id: msgId, channel: ch, sender: from, text: text))
             return
         }
+        
+        // ✅ 过滤昵称相关的 info 消息（保持界面简洁）
+        if type == "info" {
+            let text = (obj["text"] as? String) ?? ""
+            // 过滤 "昵称已更改为 XXX" 和 "joined #XXX" 消息
+            if text.contains("昵称已更改为") || text.hasPrefix("joined #") {
+                DebugLogger.log("🚫 过滤 info 消息: \(text)", level: .debug)
+                return
+            }
+        }
+        
         // 兼容服务端字段
         let msgId = (obj["id"] as? String) ?? UUID().uuidString
         let channel = (obj["channel"] as? String) ?? currentChannel
@@ -292,6 +307,7 @@ final class HackChatClient {
             systemMessage("已加入 #\(room)")
 
         case .nick(let name):
+            let isFirstTimeSetup = myNick == "iOSUser" || myNick.hasPrefix("iOSUser")
             myNick = name
             // ✅ 发送 nick 命令到服务器，同步昵称
             send(json: ["type":"nick", "nick": name])
@@ -300,9 +316,11 @@ final class HackChatClient {
             if let pass = CommandParser.extractPassphrase(fromNick: name) {
                 passphraseForEndToEndEncryption = pass
                 systemMessage("E2EE 群口令已更新")
-            } else {
-                systemMessage("昵称已更新为 \(name)")
+            } else if isFirstTimeSetup {
+                // ✅ 首次设置昵称时显示进入频道的提示
+                systemMessage("\(name) 进入 #\(currentChannel)")
             }
+            // ✅ 其他情况不显示任何提示，保持界面简洁
                 
         case .dm(let to, let text):
             sendDM(to: to, text: text)
