@@ -252,6 +252,24 @@ final class HackChatClient {
             return
         }
         
+        // ✅ 处理用户加入频道通知
+        if type == "user_joined" {
+            let nick = (obj["nick"] as? String) ?? "someone"
+            let channel = (obj["channel"] as? String) ?? currentChannel
+            DebugLogger.log("👋 用户加入: \(nick) → #\(channel)", level: .debug)
+            systemMessage("\(nick) 加入了 #\(channel)")
+            return
+        }
+        
+        // ✅ 处理用户离开频道通知
+        if type == "user_left" {
+            let nick = (obj["nick"] as? String) ?? "someone"
+            let channel = (obj["channel"] as? String) ?? currentChannel
+            DebugLogger.log("👋 用户离开: \(nick) ← #\(channel)", level: .debug)
+            systemMessage("\(nick) 离开了 #\(channel)")
+            return
+        }
+        
         // ✅ 过滤昵称相关的 info 消息（保持界面简洁）
         if type == "info" {
             let text = (obj["text"] as? String) ?? ""
