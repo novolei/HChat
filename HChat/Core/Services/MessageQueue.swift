@@ -31,6 +31,13 @@ final class MessageQueue {
         
         // 加载待发送消息数量
         updatePendingCount()
+        
+        // ✨ P0: 监听 ACK 通知
+        setupNotificationObservers()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     // MARK: - 公开方法
@@ -144,9 +151,42 @@ final class MessageQueue {
         DebugLogger.log("📊 待发送消息数量: \(pendingCount)", level: .debug)
     }
     
-    /// 处理服务器 ACK（未来实现）
-    func handleAck(messageId: String, status: MessageStatus) {
-        DebugLogger.log("✅ 收到服务器 ACK: \(messageId) -> \(status.rawValue)", level: .info)
+    // MARK: - ✨ P0: ACK 处理
+    
+    /// 设置通知监听
+    private func setupNotificationObservers() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("MessageACK"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let messageId = notification.userInfo?["messageId"] as? String,
+                  let statusStr = notification.userInfo?["status"] as? String else {
+                return
+            }
+            
+            let status: MessageStatus = (statusStr == "received") ? .sent : .sent
+            self.handleAck(messageId: messageId, status: status)
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("MessageDelivered"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let messageId = notification.userInfo?["messageId"] as? String else {
+                return
+            }
+            
+            self.handleAck(messageId: messageId, status: .delivered)
+        }
+    }
+    
+    /// 处理服务器 ACK
+    private func handleAck(messageId: String, status: MessageStatus) {
+        DebugLogger.log("✅ 处理 ACK: \(messageId) -> \(status.rawValue)", level: .info)
         
         do {
             try persistence.updateStatus(messageId: messageId, status: status)
@@ -155,6 +195,7 @@ final class MessageQueue {
             if status.isCompleted {
                 try persistence.removePending(messageId: messageId)
                 updatePendingCount()
+                DebugLogger.log("🗑️ 消息已从队列移除: \(messageId)", level: .debug)
             }
         } catch {
             DebugLogger.log("❌ 处理 ACK 失败: \(error)", level: .error)

@@ -44,6 +44,10 @@ final class MessageHandler {
             handleUserLeft(obj, state: state)
         case "info":
             handleInfo(obj, state: state)
+        case "message_ack":
+            handleMessageAck(obj)
+        case "message_delivered":
+            handleMessageDelivered(obj)
         default:
             handleChatMessage(obj, state: state)
         }
@@ -150,6 +154,38 @@ final class MessageHandler {
         if text.contains("@\(state.myNick)") {
             NotificationManager.shared.notifyMention(channel: channel, from: nick, text: text)
         }
+    }
+    
+    // MARK: - ✨ P0: ACK 消息处理
+    
+    /// 处理服务器 ACK 确认（消息已被服务器接收）
+    private func handleMessageAck(_ obj: [String: Any]) {
+        guard let messageId = obj["messageId"] as? String else { return }
+        let status = (obj["status"] as? String) ?? "received"
+        
+        DebugLogger.log("✅ 收到服务器 ACK: \(messageId) - \(status)", level: .info)
+        
+        // 通知消息队列更新状态
+        NotificationCenter.default.post(
+            name: NSNotification.Name("MessageACK"),
+            object: nil,
+            userInfo: ["messageId": messageId, "status": status]
+        )
+    }
+    
+    /// 处理消息送达确认（消息已送达其他用户）
+    private func handleMessageDelivered(_ obj: [String: Any]) {
+        guard let messageId = obj["messageId"] as? String else { return }
+        let deliveredTo = (obj["deliveredTo"] as? [String]) ?? []
+        
+        DebugLogger.log("📫 消息已送达: \(messageId) → \(deliveredTo.joined(separator: ", "))", level: .info)
+        
+        // 通知消息队列更新状态为已送达
+        NotificationCenter.default.post(
+            name: NSNotification.Name("MessageDelivered"),
+            object: nil,
+            userInfo: ["messageId": messageId, "deliveredTo": deliveredTo]
+        )
     }
 }
 
