@@ -45,7 +45,9 @@ struct SocialView: View {
                     }
                     .padding(.top, ModernTheme.spacing3)
                 }
+                .scrollDismissesKeyboardIfAvailable() // 滚动时隐藏键盘
             }
+            .hideKeyboardOnTap() // 点击背景隐藏键盘
             .navigationTitle("社交")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {

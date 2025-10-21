@@ -28,6 +28,7 @@ struct ChatView: View {
                 // 聊天背景
                 HChatTheme.chatBackground
                     .ignoresSafeArea()
+                    .hideKeyboardOnTap() // 点击背景隐藏键盘
                 
                 VStack(spacing: 0) {
                     // 消息列表

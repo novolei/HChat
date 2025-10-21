@@ -48,15 +48,26 @@ struct ChatInputView: View {
                 
                 // 输入框
                 HStack(alignment: .bottom, spacing: HChatTheme.smallSpacing) {
-                    TextField("输入消息...", text: $inputText, axis: .vertical)
-                        .lineLimit(1...6)
-                        .font(HChatTheme.bodyFont)
-                        .focused($isInputFocused)
-                        .onSubmit {
-                            if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                onSend()
-                            }
+            TextField("输入消息...", text: $inputText, axis: .vertical)
+                .lineLimit(1...6)
+                .font(HChatTheme.bodyFont)
+                .focused($isInputFocused)
+                .onSubmit {
+                    if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        onSend()
+                    }
+                }
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button {
+                            KeyboardHelper.hideKeyboard()
+                        } label: {
+                            Image(systemName: "keyboard.chevron.compact.down")
+                                .foregroundColor(HChatTheme.accent)
                         }
+                    }
+                }
                 }
                 .padding(.horizontal, HChatTheme.mediumSpacing)
                 .padding(.vertical, HChatTheme.smallSpacing)

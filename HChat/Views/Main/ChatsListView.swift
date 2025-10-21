@@ -77,7 +77,9 @@ struct ChatsListView: View {
                     }
                     .padding(.top, ModernTheme.spacing3)
                 }
+                .scrollDismissesKeyboardIfAvailable() // 滚动时隐藏键盘
             }
+            .hideKeyboardOnTap() // 点击背景隐藏键盘
             .navigationTitle("消息")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -526,12 +528,20 @@ struct NewChatSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: ModernTheme.spacing5) {
-                TextField("输入频道名称", text: $channelName)
-                    .font(ModernTheme.body)
-                    .padding(ModernTheme.spacing4)
-                    .background(ModernTheme.tertiaryText.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: ModernTheme.mediumRadius))
-                    .padding()
+            TextField("输入频道名称", text: $channelName)
+                .font(ModernTheme.body)
+                .padding(ModernTheme.spacing4)
+                .background(ModernTheme.tertiaryText.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: ModernTheme.mediumRadius))
+                .padding()
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("完成") {
+                            KeyboardHelper.hideKeyboard()
+                        }
+                    }
+                }
                 
                 Button {
                     client.sendText("/join \(channelName)")
@@ -590,6 +600,14 @@ struct ProfileSheet: View {
                     .background(ModernTheme.tertiaryText.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: ModernTheme.mediumRadius))
                     .padding()
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("完成") {
+                                KeyboardHelper.hideKeyboard()
+                            }
+                        }
+                    }
                 
                 Button {
                     if !newNickname.isEmpty {

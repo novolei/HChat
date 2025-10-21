@@ -109,6 +109,7 @@ struct ChatMessageListView: View {
                     .listStyle(.plain)
                     .listRowBackground(Color.clear)
                     .scrollContentBackground(.hidden)
+                    .scrollDismissesKeyboardIfAvailable() // 滚动时隐藏键盘
                     
                     // 空状态视图
                     if filteredMessages.isEmpty {
