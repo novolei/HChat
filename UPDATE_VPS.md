@@ -6,7 +6,29 @@
 
 ---
 
-## 📋 在 VPS 上执行以下命令
+## 🚀 推荐方法：使用自动化部署脚本
+
+**最简单的方式（推荐）：**
+
+```bash
+# 在本地 Mac 上
+cd /Users/ryanliu/DDCS/HChat/HCChatBackEnd
+./deploy.sh chat-gateway
+```
+
+脚本会自动：
+- ✅ 检测 VPS 上的本地修改
+- ✅ 自动保存并同步到最新代码
+- ✅ 重启服务
+- ✅ 显示日志
+
+**不会再有 Git 冲突问题！** ✨
+
+---
+
+## 📋 手动方法（备用）
+
+如果需要手动更新，在 VPS 上执行以下命令
 
 ```bash
 # 1. SSH 登录到 VPS
@@ -88,4 +110,58 @@ broadcast(ws.channel, {
 ---
 
 **更新后应该就不会再看到两条重复消息了！** 🎉
+
+---
+
+## 🛡️ 如何避免以后出现 Git 冲突
+
+### ✅ 一次性配置（推荐）
+
+在本地运行一次配置脚本：
+
+```bash
+cd /Users/ryanliu/DDCS/HChat/HCChatBackEnd
+./setup-vps-git.sh
+```
+
+这会在 VPS 上配置 Git，避免以后的冲突。
+
+---
+
+### 📋 最佳实践
+
+**黄金法则：永远不要在 VPS 上直接修改代码！**
+
+```
+正确流程：
+1. 在 Mac 上编辑代码
+2. git commit & git push
+3. ./deploy.sh chat-gateway
+
+错误做法：
+❌ SSH 到 VPS 直接 vim 修改文件
+❌ 在 VPS 上 git commit
+```
+
+**详细指南：** 查看 `HCChatBackEnd/DEPLOYMENT_BEST_PRACTICES.md`
+
+---
+
+### 🔄 以后的部署流程
+
+```bash
+# 1. 在本地编辑代码
+vim HCChatBackEnd/chat-gateway/server.js
+
+# 2. 提交
+cd HCChatBackEnd
+git add .
+git commit -m "修改: xxx"
+git push origin main
+
+# 3. 一键部署（自动处理所有问题）
+./deploy.sh chat-gateway
+```
+
+**就这么简单！** ✨
 
