@@ -129,35 +129,32 @@ struct ReactionBubblesView: View {
     
     var body: some View {
         if message.hasReactions {
-            VStack(alignment: alignment, spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(message.reactionSummaries, id: \.emoji) { summary in
-                            ReactionBubble(
-                                emoji: summary.emoji,
-                                count: summary.count,
-                                isMyReaction: summary.contains(user: myNick)
-                            ) {
-                                onTapReaction(summary.emoji)
-                            }
-                        }
-                        
-                        // 添加反应按钮
-                        Button {
-                            onShowMore()
-                        } label: {
-                            Image(systemName: "plus.circle")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                                .frame(width: 28, height: 28)
-                                .background(Color(.systemGray6))
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
+            // 直接返回 HStack，让父 VStack 控制对齐（与"1人已读"相同的方式）
+            HStack(spacing: 6) {
+                ForEach(message.reactionSummaries, id: \.emoji) { summary in
+                    ReactionBubble(
+                        emoji: summary.emoji,
+                        count: summary.count,
+                        isMyReaction: summary.contains(user: myNick)
+                    ) {
+                        onTapReaction(summary.emoji)
                     }
-                    .padding(.vertical, 4)
                 }
+                
+                // 添加反应按钮
+                Button {
+                    onShowMore()
+                } label: {
+                    Image(systemName: "plus.circle")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color(.systemGray6))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
             }
+            .padding(.vertical, 4)
         }
     }
 }
@@ -250,12 +247,12 @@ struct ReactionDetailView: View {
         return msg
     }
     
-    ReactionBubblesView(
-        message: sampleMessage,
-        myNick: "Alice",
-        onTapReaction: { _ in },
-        onShowMore: {}
-    )
-    .padding()
+//    ReactionBubblesView(
+//        message: sampleMessage,
+//        myNick: "Alice",
+//        onTapReaction: { _ in },
+//        onShowMore: {}
+//    )
+//    .padding()
 }
 
