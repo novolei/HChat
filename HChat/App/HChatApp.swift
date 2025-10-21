@@ -8,7 +8,7 @@ struct HChatApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ChatView(client: client)
+            MainTabView(client: client)
                 .onAppear {
                     // ✅ 请求通知权限
                     Task {
