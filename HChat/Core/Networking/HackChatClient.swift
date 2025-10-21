@@ -46,6 +46,7 @@ final class HackChatClient {
     let presenceManager: PresenceManager   // 在线状态管理器
     let reactionManager: ReactionManager   // 表情反应管理器
     let replyManager: ReplyManager         // 消息引用/回复管理器
+    let readReceiptManager: ReadReceiptManager // 已读回执管理器
     
     // MARK: - WebSocket
     private var webSocket: URLSessionWebSocketTask?
@@ -64,18 +65,20 @@ final class HackChatClient {
         self.presenceManager = PresenceManager()
         self.reactionManager = ReactionManager()
         self.replyManager = ReplyManager()
-        
-        self.messageHandler = MessageHandler(state: state, presenceManager: presenceManager, reactionManager: reactionManager)
+        self.readReceiptManager = ReadReceiptManager()
+
+        self.messageHandler = MessageHandler(state: state, presenceManager: presenceManager, reactionManager: reactionManager, readReceiptManager: readReceiptManager)
         self.commandHandler = CommandHandler(state: state, sendMessage: { [weak self] json in
             self?.send(json: json)
         })
         self.messageQueue = MessageQueue(client: nil)  // 先初始化为 nil
         self.messageQueue = MessageQueue(client: self) // 然后设置为 self
-        
+
         // 设置管理器的依赖
         self.presenceManager.setClient(self)
         self.reactionManager.setDependencies(client: self, state: state)
         self.replyManager.setClient(self)
+        self.readReceiptManager.setDependencies(client: self, state: state)
     }
     
     // MARK: - 连接管理

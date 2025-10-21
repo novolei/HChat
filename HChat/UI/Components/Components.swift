@@ -16,6 +16,7 @@ struct MessageRowView: View {
     var onShowReactionDetail: (() -> Void)? = nil          // 显示反应详情
     var onReply: (() -> Void)? = nil                       // ✨ P1: 回复消息
     var onJumpToReply: ((String) -> Void)? = nil           // ✨ P1: 跳转到被引用的消息
+    var onShowReadReceipts: (() -> Void)? = nil            // ✨ P1: 显示已读回执
     
     @State private var showQuickPicker = false
 
@@ -57,6 +58,16 @@ struct MessageRowView: View {
                     }
                 )
             }
+            
+            // ✨ P1: 已读回执指示器
+            if message.hasReadReceipts && message.sender == myNick {
+                Button {
+                    onShowReadReceipts?()
+                } label: {
+                    ReadReceiptIndicator(message: message, showDetails: true)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
@@ -94,6 +105,17 @@ struct MessageRowView: View {
                     onShowReactionDetail?()
                 } label: {
                     Label("查看反应 (\(message.totalReactionCount))", systemImage: "list.bullet")
+                }
+            }
+            
+            // ✨ P1: 已读回执
+            if message.hasReadReceipts && message.sender == myNick {
+                Divider()
+                
+                Button {
+                    onShowReadReceipts?()
+                } label: {
+                    Label("查看已读 (\(message.readCount))", systemImage: "checkmark.circle")
                 }
             }
         }

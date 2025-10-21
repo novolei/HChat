@@ -13,11 +13,15 @@ final class MessageHandler {
     private weak var state: ChatState?
     private weak var presenceManager: PresenceManager?
     private weak var reactionManager: ReactionManager?
+    private weak var replyManager: ReplyManager? // ✨ P1: 消息引用/回复管理器
+    private weak var readReceiptManager: ReadReceiptManager? // ✨ P1: 已读回执管理器
     
-    init(state: ChatState, presenceManager: PresenceManager? = nil, reactionManager: ReactionManager? = nil) {
+    init(state: ChatState, presenceManager: PresenceManager? = nil, reactionManager: ReactionManager? = nil, replyManager: ReplyManager? = nil, readReceiptManager: ReadReceiptManager? = nil) {
         self.state = state
         self.presenceManager = presenceManager
         self.reactionManager = reactionManager
+        self.replyManager = replyManager
+        self.readReceiptManager = readReceiptManager
     }
     
     /// 设置 PresenceManager（用于延迟注入）
@@ -28,6 +32,16 @@ final class MessageHandler {
     /// 设置 ReactionManager（用于延迟注入）
     func setReactionManager(_ manager: ReactionManager) {
         self.reactionManager = manager
+    }
+    
+    /// 设置 ReplyManager（用于延迟注入）
+    func setReplyManager(_ manager: ReplyManager) {
+        self.replyManager = manager
+    }
+    
+    /// 设置 ReadReceiptManager（用于延迟注入）
+    func setReadReceiptManager(_ manager: ReadReceiptManager) {
+        self.readReceiptManager = manager
     }
     
     /// 处理接收到的数据
@@ -68,6 +82,8 @@ final class MessageHandler {
             handleReactionAdded(obj)
         case "reaction_removed":
             handleReactionRemoved(obj)
+        case "read_receipt": // ✨ P1: 已读回执
+            handleReadReceipt(obj)
         default:
             handleChatMessage(obj, state: state)
         }
@@ -258,6 +274,12 @@ final class MessageHandler {
     /// 处理反应移除通知
     private func handleReactionRemoved(_ obj: [String: Any]) {
         reactionManager?.handleReactionRemoved(obj)
+    }
+    
+    // MARK: - ✨ P1: 已读回执处理
+    /// 处理已读回执通知
+    private func handleReadReceipt(_ obj: [String: Any]) {
+        readReceiptManager?.handleReadReceipt(obj)
     }
 }
 

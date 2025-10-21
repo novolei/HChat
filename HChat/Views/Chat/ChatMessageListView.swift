@@ -15,6 +15,7 @@ struct ChatMessageListView: View {
     // ✨ P1: 表情反应状态
     @State private var showFullPicker = false
     @State private var showReactionDetail = false
+    @State private var showReadReceiptDetail = false // ✨ P1: 已读回执详情
     @State private var selectedMessage: ChatMessage?
     
     var body: some View {
@@ -49,9 +50,19 @@ struct ChatMessageListView: View {
                             onJumpToReply: { messageId in
                                 // ✨ P1: 跳转到被引用的消息（TODO: 实现滚动）
                                 DebugLogger.log("💬 跳转到消息: \(messageId)", level: .debug)
+                            },
+                            onShowReadReceipts: { // ✨ P1: 显示已读回执详情
+                                selectedMessage = m
+                                showReadReceiptDetail = true
                             }
                         )
                         .id(m.id)
+                        .onAppear {
+                            // ✨ P1: 消息可见时自动发送已读回执
+                            if m.sender != client.myNick {
+                                client.readReceiptManager.markAsRead(messageId: m.id, channel: m.channel)
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -67,6 +78,11 @@ struct ChatMessageListView: View {
         .sheet(isPresented: $showReactionDetail) {
             if let message = selectedMessage {
                 ReactionDetailView(message: message)
+            }
+        }
+        .sheet(isPresented: $showReadReceiptDetail) { // ✨ P1: 已读回执详情
+            if let message = selectedMessage {
+                ReadReceiptDetailView(message: message)
             }
         }
     }
