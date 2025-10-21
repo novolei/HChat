@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct HChatApp: App {
-    @StateObject var client = HackChatClient()
+    @State var client = HackChatClient()
 
     var body: some Scene {
         WindowGroup {

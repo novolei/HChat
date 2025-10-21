@@ -1,6 +1,5 @@
 #if canImport(LiveKit)
 import SwiftUI
-import Combine
 import LiveKit
 
 //final class CallManager: ObservableObject {
@@ -66,7 +65,7 @@ import LiveKit
 
 /// 极简通话页（用 .sheet 弹出）
 struct CallView: View {
-    @StateObject private var callManager = CallManager()
+    @State private var callManager = CallManager()
     let roomName: String
     let identity: String
 

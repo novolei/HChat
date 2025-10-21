@@ -7,42 +7,38 @@
 
 #if canImport(LiveKit)
 import Foundation
-import Combine
+import Observation
 import LiveKit
 
-final class CallManager: ObservableObject {
-    @Published var room: Room = Room()
-    @Published var isConnected: Bool = false
-    @Published var statusText: String = "未连接"
-    @Published var lastError: String?
+@MainActor
+@Observable
+final class CallManager {
+    var room: Room = Room()
+    var isConnected: Bool = false
+    var statusText: String = "未连接"
+    var lastError: String?
 
     func join(roomName: String, identity: String) {
-        Task {
+        Task { @MainActor in
             do {
                 let (lkUrl, token) = try await Self.fetchToken(room: roomName, identity: identity)
                 try await room.connect(url: lkUrl, token: token)
-                await MainActor.run {
-                    self.isConnected = true
-                    self.statusText = "已加入：\(roomName)"
-                    self.lastError = nil
-                }
+                self.isConnected = true
+                self.statusText = "已加入：\(roomName)"
+                self.lastError = nil
             } catch {
-                await MainActor.run {
-                    self.isConnected = false
-                    self.statusText = "连接失败"
-                    self.lastError = error.localizedDescription
-                }
+                self.isConnected = false
+                self.statusText = "连接失败"
+                self.lastError = error.localizedDescription
             }
         }
     }
 
     func leave() {
-        Task {
+        Task { @MainActor in
             await room.disconnect()
-            await MainActor.run {
-                self.isConnected = false
-                self.statusText = "未连接"
-            }
+            self.isConnected = false
+            self.statusText = "未连接"
         }
     }
 

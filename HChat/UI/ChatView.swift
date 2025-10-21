@@ -7,8 +7,8 @@
 import SwiftUI
 
 struct ChatView: View {
-    @ObservedObject var client: HackChatClient
-    @StateObject var callManager = CallManager()
+    var client: HackChatClient
+    @State var callManager = CallManager()
 
     @State private var inputText: String = ""
     @State private var searchText: String = ""

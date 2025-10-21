@@ -38,6 +38,12 @@ Project Overview
   - Encryption layer for secure messaging
   - MinIO integration for file storage
   - Modern Swift concurrency (@MainActor, async/await)
+  - **Swift Observation API (iOS 17+)**: Use `@Observable` macro instead of `ObservableObject`
+    - ✅ Models: `@Observable` + `@MainActor`
+    - ✅ App: `@State` for owned objects
+    - ✅ Views: No wrapper for passed objects, or `@Bindable` for bindings
+    - ❌ Never use: `ObservableObject`, `@Published`, `@StateObject`, `@ObservedObject`
+    - 📖 See `SWIFT_OBSERVATION_RULES.md` for complete guide
 
   ## Backend (Self-hosted at hc.go-lv.com)
   

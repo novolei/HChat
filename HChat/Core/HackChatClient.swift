@@ -6,21 +6,20 @@
 //
 
 import Foundation
-import Combine
-
+import Observation
 
 @MainActor
-final class HackChatClient: ObservableObject {
-    @Published var channels: [Channel] = [Channel(name: "lobby")]
-    @Published var currentChannel: String = "lobby"
-    @Published var messagesByChannel: [String: [ChatMessage]] = [:]
-    @Published var myNick: String = "iOSUser"
-    @Published var passphraseForEndToEndEncryption: String = ""  // 群口令
-    @Published var onlineByRoom: [String: Set<String>] = [:]
-    @Published var onlineCountByRoom: [String: Int] = [:]
+@Observable
+final class HackChatClient {
+    var channels: [Channel] = [Channel(name: "lobby")]
+    var currentChannel: String = "lobby"
+    var messagesByChannel: [String: [ChatMessage]] = [:]
+    var myNick: String = "iOSUser"
+    var passphraseForEndToEndEncryption: String = ""  // 群口令
+    var onlineByRoom: [String: Set<String>] = [:]
+    var onlineCountByRoom: [String: Int] = [:]
 
     private var webSocket: URLSessionWebSocketTask?
-    private var subscriptions = Set<AnyCancellable>()
     private var sentMessageIds = Set<String>() // ✅ 去重关键（防自己重复 append）
 
     
