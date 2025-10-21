@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct HChatApp: App {
@@ -8,6 +9,11 @@ struct HChatApp: App {
         WindowGroup {
             ChatView(client: client)
                 .onAppear {
+                    // ✅ 请求通知权限
+                    Task {
+                        await SmartNotificationManager.shared.requestPermission()
+                    }
+                    
                     // 连接你的 chat-gateway WebSocket
                     if let url = URL(string: "wss://hc.go-lv.com/chat-ws") {
                         client.connect(to: url)
