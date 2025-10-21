@@ -16,11 +16,11 @@ enum NotificationPriority {
     case normal     // 普通：频道消息
     case silent     // 静音：已屏蔽频道
     
-    var soundName: UNNotificationSoundName {
+    var sound: UNNotificationSound? {
         switch self {
         case .urgent: return .default
-        case .normal: return .defaultCritical
-        case .silent: return .init(rawValue: "")
+        case .normal: return .default
+        case .silent: return nil
         }
     }
     
@@ -130,7 +130,7 @@ final class SmartNotificationManager {
         let content = UNMutableNotificationContent()
         content.title = "@提及 · #\(channel)"
         content.body = "\(from): \(text)"
-        content.sound = NotificationPriority.urgent.soundName
+        content.sound = NotificationPriority.urgent.sound
         content.threadIdentifier = channel
         content.interruptionLevel = NotificationPriority.urgent.interruptionLevel
         content.badge = NSNumber(value: 1)
@@ -246,7 +246,7 @@ final class SmartNotificationManager {
         }
         
         // 声音和优先级
-        content.sound = priority.soundName
+        content.sound = priority.sound
         content.interruptionLevel = priority.interruptionLevel
         
         // 分组（按频道）
