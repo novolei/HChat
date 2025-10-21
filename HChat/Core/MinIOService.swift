@@ -23,7 +23,8 @@ struct MinIOService {
         let (data, resp) = try await URLSession.shared.dataWithLogging(for: req)
         
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            DebugLogger.log("❌ 预签名请求失败: HTTP \(http.statusCode)", level: .error)
+            let statusCode = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            DebugLogger.log("❌ 预签名请求失败: HTTP \(statusCode)", level: .error)
             throw URLError(.badServerResponse)
         }
         
@@ -45,7 +46,8 @@ struct MinIOService {
         let duration = Date().timeIntervalSince(startTime)
         
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            DebugLogger.log("❌ 文件上传失败: HTTP \(http.statusCode)", level: .error)
+            let statusCode = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            DebugLogger.log("❌ 文件上传失败: HTTP \(statusCode)", level: .error)
             throw URLError(.cannotCreateFile)
         }
         
