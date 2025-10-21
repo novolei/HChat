@@ -14,6 +14,8 @@ struct MessageRowView: View {
     var onReactionTap: ((String) -> Void)? = nil           // 点击反应
     var onShowReactionPicker: (() -> Void)? = nil          // 显示反应选择器
     var onShowReactionDetail: (() -> Void)? = nil          // 显示反应详情
+    var onReply: (() -> Void)? = nil                       // ✨ P1: 回复消息
+    var onJumpToReply: ((String) -> Void)? = nil           // ✨ P1: 跳转到被引用的消息
     
     @State private var showQuickPicker = false
 
@@ -26,6 +28,13 @@ struct MessageRowView: View {
                     .font(.caption2).foregroundStyle(.secondary)
             }
             .opacity(0.9)
+            
+            // ✨ P1: 显示引用的消息
+            if let reply = message.replyTo {
+                QuotedMessageView(reply: reply) {
+                    onJumpToReply?(reply.messageId)
+                }
+            }
 
             if !message.text.isEmpty {
                 RichText(message: message, myNick: myNick)
@@ -54,6 +63,15 @@ struct MessageRowView: View {
         .background(message.isLocalEcho ? Color.primary.opacity(0.03) : .clear)
         .cornerRadius(8)
         .contextMenu {
+            // ✨ P1: 回复消息
+            Button {
+                onReply?()
+            } label: {
+                Label("回复", systemImage: "arrowshape.turn.up.left")
+            }
+            
+            Divider()
+            
             // ✨ P1: 右键菜单快捷反应
             ForEach(QuickReactions.defaults.prefix(3), id: \.self) { emoji in
                 Button {
@@ -70,6 +88,8 @@ struct MessageRowView: View {
             }
             
             if message.hasReactions {
+                Divider()
+                
                 Button {
                     onShowReactionDetail?()
                 } label: {

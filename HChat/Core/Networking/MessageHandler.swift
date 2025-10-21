@@ -169,6 +169,22 @@ final class MessageHandler {
             attachments = [Attachment(kind: kind, filename: fn, contentType: "application/octet-stream", putUrl: nil, getUrl: u, sizeBytes: nil)]
         }
         
+        // ✨ P1: 解析引用信息
+        var replyTo: MessageReply? = nil
+        if let r = obj["replyTo"] as? [String: Any],
+           let replyMsgId = r["messageId"] as? String,
+           let replySender = r["sender"] as? String,
+           let replyText = r["text"] as? String {
+            let replyTimestamp = (r["timestamp"] as? TimeInterval).map { Date(timeIntervalSince1970: $0) } ?? Date()
+            replyTo = MessageReply(
+                messageId: replyMsgId,
+                sender: replySender,
+                text: replyText,
+                timestamp: replyTimestamp
+            )
+            DebugLogger.log("💬 收到回复消息 - 引用: \(replySender)", level: .debug)
+        }
+        
         // 去重：若是自己刚发的 msgId，则不再追加
         if state.isMessageAlreadySent(id: msgId) {
             DebugLogger.log("✅ 去重成功 - 忽略自己发送的消息 ID: \(msgId)", level: .debug)
@@ -176,7 +192,14 @@ final class MessageHandler {
         }
         
         DebugLogger.log("📝 添加消息到列表 - ID: \(msgId), from: \(nick)", level: .debug)
-        let message = ChatMessage(id: msgId, channel: channel, sender: nick, text: text, attachments: attachments)
+        let message = ChatMessage(
+            id: msgId,
+            channel: channel,
+            sender: nick,
+            text: text,
+            attachments: attachments,
+            replyTo: replyTo
+        )
         state.appendMessage(message)
         
         // ✅ 使用新的智能通知系统

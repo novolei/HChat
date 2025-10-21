@@ -15,27 +15,41 @@ struct ChatInputView: View {
     var onAttachment: () -> Void
     
     var body: some View {
-        HStack(spacing: 8) {
-            Button {
-                onAttachment()
-            } label: {
-                Image(systemName: "paperclip")
+        VStack(spacing: 0) {
+            // ✨ P1: 回复预览条
+            if let replyTo = client.replyManager.replyingTo {
+                ReplyPreviewBar(
+                    replyTo: replyTo,
+                    onCancel: {
+                        client.replyManager.clearReply()
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .buttonStyle(.borderless)
             
-            TextField("消息（支持 /join /nick /me /clear /help）", text: $inputText, axis: .vertical)
-                .lineLimit(1...4)
-                .onSubmit {
+            HStack(spacing: 8) {
+                Button {
+                    onAttachment()
+                } label: {
+                    Image(systemName: "paperclip")
+                }
+                .buttonStyle(.borderless)
+                
+                TextField("消息（支持 /join /nick /me /clear /help）", text: $inputText, axis: .vertical)
+                    .lineLimit(1...4)
+                    .onSubmit {
+                        onSend()
+                    }
+                
+                Button("发送") {
                     onSend()
                 }
-            
-            Button("发送") {
-                onSend()
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
+            .padding()
+            .background(.bar)
         }
-        .padding()
-        .background(.bar)
+        .animation(.easeInOut(duration: 0.2), value: client.replyManager.replyingTo != nil)
     }
 }
 

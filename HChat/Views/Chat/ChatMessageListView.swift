@@ -41,6 +41,14 @@ struct ChatMessageListView: View {
                             onShowReactionDetail: {
                                 selectedMessage = m
                                 showReactionDetail = true
+                            },
+                            onReply: {
+                                // ✨ P1: 设置回复目标
+                                client.replyManager.setReplyTarget(m)
+                            },
+                            onJumpToReply: { messageId in
+                                // ✨ P1: 跳转到被引用的消息（TODO: 实现滚动）
+                                DebugLogger.log("💬 跳转到消息: \(messageId)", level: .debug)
                             }
                         )
                         .id(m.id)

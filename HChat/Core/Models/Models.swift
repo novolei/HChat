@@ -46,6 +46,12 @@ public struct ChatMessage: Identifiable, Hashable, Codable {
     
     // ✨ P1: 表情回应
     public var reactions: [String: [MessageReaction]] = [:]  // emoji -> reactions
+    
+    // ✨ P1: 消息引用/回复
+    public var replyTo: MessageReply?                // 引用的消息
+    
+    // ✨ P1: 已读回执
+    public var readReceipts: [ReadReceipt] = []      // 已读回执列表
 
     public init(id: String = UUID().uuidString,
                 channel: String, sender: String, text: String,
@@ -54,7 +60,9 @@ public struct ChatMessage: Identifiable, Hashable, Codable {
                 isLocalEcho: Bool = false,
                 status: MessageStatus = .sent,
                 retryCount: Int = 0,
-                reactions: [String: [MessageReaction]] = [:]) {
+                reactions: [String: [MessageReaction]] = [:],
+                replyTo: MessageReply? = nil,
+                readReceipts: [ReadReceipt] = []) {
         self.id = id
         self.channel = channel
         self.sender = sender
@@ -65,6 +73,8 @@ public struct ChatMessage: Identifiable, Hashable, Codable {
         self.status = status
         self.retryCount = retryCount
         self.reactions = reactions
+        self.replyTo = replyTo
+        self.readReceipts = readReceipts
     }
     
     // MARK: - 辅助方法
@@ -84,6 +94,31 @@ public struct ChatMessage: Identifiable, Hashable, Codable {
         reactions.map { emoji, reactionList in
             ReactionSummary(emoji: emoji, users: reactionList.map(\.userId))
         }.sorted { $0.count > $1.count }  // 按反应数量降序
+    }
+    
+    /// 是否是回复消息
+    public var isReply: Bool {
+        replyTo != nil
+    }
+    
+    /// 是否有已读回执
+    public var hasReadReceipts: Bool {
+        !readReceipts.isEmpty
+    }
+    
+    /// 已读人数
+    public var readCount: Int {
+        readReceipts.count
+    }
+    
+    /// 检查某人是否已读
+    public func isReadBy(_ userId: String) -> Bool {
+        readReceipts.contains { $0.userId == userId }
+    }
+    
+    /// 已读用户列表
+    public var readByUsers: [String] {
+        readReceipts.map(\.userId)
     }
 }
 

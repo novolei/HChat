@@ -102,7 +102,14 @@ struct ChatView: View {
     private func sendOnce() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        client.sendText(text)
+        
+        // ✨ P1: 如果正在回复，使用 ReplyManager 发送
+        if client.replyManager.replyingTo != nil {
+            client.replyManager.sendReply(text: text)
+        } else {
+            client.sendText(text)
+        }
+        
         inputText = ""
     }
     
