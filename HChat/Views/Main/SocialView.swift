@@ -218,7 +218,7 @@ struct FriendsSection: View {
     var client: HackChatClient
     
     private var onlineUsers: [String] {
-        client.state.presenceByRoom[client.currentChannel] ?? []
+        Array(client.state.onlineByRoom[client.currentChannel] ?? [])
     }
     
     var body: some View {

@@ -185,7 +185,7 @@ struct OnlineUsersScrollView: View {
     
     private var onlineUsers: [String] {
         // 获取当前频道的在线用户
-        client.state.presenceByRoom[client.currentChannel] ?? []
+        Array(client.state.onlineByRoom[client.currentChannel] ?? [])
     }
     
     var body: some View {

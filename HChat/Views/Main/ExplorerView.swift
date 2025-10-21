@@ -207,7 +207,7 @@ struct UsersGrid: View {
     ]
     
     private var users: [String] {
-        let allUsers = client.state.presenceByRoom[client.currentChannel] ?? []
+        let allUsers = Array(client.state.onlineByRoom[client.currentChannel] ?? [])
         if searchText.isEmpty {
             return allUsers
         }
