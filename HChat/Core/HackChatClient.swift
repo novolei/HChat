@@ -165,7 +165,39 @@ final class HackChatClient {
             }
             return
         }
-
+        
+        // 处理昵称变更通知
+        if type == "nick_change" {
+            let oldNick = (obj["oldNick"] as? String) ?? ""
+            let newNick = (obj["newNick"] as? String) ?? ""
+            let channel = (obj["channel"] as? String) ?? currentChannel
+            
+            DebugLogger.log("👤 昵称变更: \(oldNick) → \(newNick) (频道: \(channel))", level: .debug)
+            
+            // 更新该频道所有消息中的发送者昵称
+            if var messages = messagesByChannel[channel] {
+                for index in messages.indices {
+                    if messages[index].sender == oldNick {
+                        // 创建新的消息对象（因为 ChatMessage 是 struct）
+                        let oldMsg = messages[index]
+                        messages[index] = ChatMessage(
+                            id: oldMsg.id,
+                            channel: oldMsg.channel,
+                            sender: newNick,  // 更新昵称
+                            text: oldMsg.text,
+                            timestamp: oldMsg.timestamp,
+                            attachments: oldMsg.attachments,
+                            isLocalEcho: oldMsg.isLocalEcho
+                        )
+                    }
+                }
+                messagesByChannel[channel] = messages
+            }
+            
+            // 显示系统提示
+            systemMessage("\(oldNick) 更名为 \(newNick)")
+            return
+        }
 
         if type == "dm" {
             let msgId = (obj["id"] as? String) ?? UUID().uuidString
