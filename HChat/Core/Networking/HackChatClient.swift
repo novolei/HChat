@@ -44,6 +44,7 @@ final class HackChatClient {
     // MARK: - P0/P1 功能管理器
     let searchEngine: MessageSearchEngine  // 搜索引擎
     let presenceManager: PresenceManager   // 在线状态管理器
+    let reactionManager: ReactionManager   // 表情反应管理器
     
     // MARK: - WebSocket
     private var webSocket: URLSessionWebSocketTask?
@@ -58,16 +59,18 @@ final class HackChatClient {
         self.state = ChatState()
         self.searchEngine = MessageSearchEngine()
         self.presenceManager = PresenceManager()
+        self.reactionManager = ReactionManager()
         
-        self.messageHandler = MessageHandler(state: state, presenceManager: presenceManager)
+        self.messageHandler = MessageHandler(state: state, presenceManager: presenceManager, reactionManager: reactionManager)
         self.commandHandler = CommandHandler(state: state, sendMessage: { [weak self] json in
             self?.send(json: json)
         })
         self.messageQueue = MessageQueue(client: nil)  // 先初始化为 nil
         self.messageQueue = MessageQueue(client: self) // 然后设置为 self
         
-        // 设置 presenceManager 的客户端引用
+        // 设置管理器的依赖
         self.presenceManager.setClient(self)
+        self.reactionManager.setDependencies(client: self, state: state)
     }
     
     // MARK: - 连接管理

@@ -11,6 +11,11 @@ import AVKit
 struct MessageRowView: View {
     let message: ChatMessage
     let myNick: String
+    var onReactionTap: ((String) -> Void)? = nil           // 点击反应
+    var onShowReactionPicker: (() -> Void)? = nil          // 显示反应选择器
+    var onShowReactionDetail: (() -> Void)? = nil          // 显示反应详情
+    
+    @State private var showQuickPicker = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -29,11 +34,63 @@ struct MessageRowView: View {
             ForEach(message.attachments) { a in
                 AttachmentCard(attachment: a)
             }
+            
+            // ✨ P1: 表情反应气泡
+            if message.hasReactions {
+                ReactionBubblesView(
+                    message: message,
+                    myNick: myNick,
+                    onTapReaction: { emoji in
+                        onReactionTap?(emoji)
+                    },
+                    onShowMore: {
+                        onShowReactionPicker?()
+                    }
+                )
+            }
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
         .background(message.isLocalEcho ? Color.primary.opacity(0.03) : .clear)
         .cornerRadius(8)
+        .contextMenu {
+            // ✨ P1: 右键菜单快捷反应
+            ForEach(QuickReactions.defaults.prefix(3), id: \.self) { emoji in
+                Button {
+                    onReactionTap?(emoji)
+                } label: {
+                    Label(emoji, systemImage: "face.smiling")
+                }
+            }
+            
+            Button {
+                onShowReactionPicker?()
+            } label: {
+                Label("更多反应...", systemImage: "face.smiling")
+            }
+            
+            if message.hasReactions {
+                Button {
+                    onShowReactionDetail?()
+                } label: {
+                    Label("查看反应 (\(message.totalReactionCount))", systemImage: "list.bullet")
+                }
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            // 长按时显示快捷选择器
+            if showQuickPicker {
+                EmojiReactionPicker { emoji in
+                    onReactionTap?(emoji)
+                    showQuickPicker = false
+                }
+                .offset(x: 0, y: -50)
+                .zIndex(100)
+            }
+        }
+        .onLongPressGesture {
+            showQuickPicker = true
+        }
     }
 }
 

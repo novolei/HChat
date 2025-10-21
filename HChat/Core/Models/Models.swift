@@ -31,7 +31,7 @@ public struct Attachment: Hashable, Codable, Identifiable {
     }
 }
 
-public struct ChatMessage: Identifiable, Hashable {
+public struct ChatMessage: Identifiable, Hashable, Codable {
     public let id: String
     public let channel: String
     public let sender: String
@@ -39,12 +39,22 @@ public struct ChatMessage: Identifiable, Hashable {
     public let timestamp: Date
     public let attachments: [Attachment]
     public let isLocalEcho: Bool
+    
+    // ✨ P0: 消息可靠性
+    public var status: MessageStatus = .sent        // 消息状态
+    public var retryCount: Int = 0                   // 重试次数
+    
+    // ✨ P1: 表情回应
+    public var reactions: [String: [MessageReaction]] = [:]  // emoji -> reactions
 
     public init(id: String = UUID().uuidString,
                 channel: String, sender: String, text: String,
                 timestamp: Date = .init(),
                 attachments: [Attachment] = [],
-                isLocalEcho: Bool = false) {
+                isLocalEcho: Bool = false,
+                status: MessageStatus = .sent,
+                retryCount: Int = 0,
+                reactions: [String: [MessageReaction]] = [:]) {
         self.id = id
         self.channel = channel
         self.sender = sender
@@ -52,6 +62,28 @@ public struct ChatMessage: Identifiable, Hashable {
         self.timestamp = timestamp
         self.attachments = attachments
         self.isLocalEcho = isLocalEcho
+        self.status = status
+        self.retryCount = retryCount
+        self.reactions = reactions
+    }
+    
+    // MARK: - 辅助方法
+    
+    /// 是否有表情反应
+    public var hasReactions: Bool {
+        !reactions.isEmpty
+    }
+    
+    /// 总反应数
+    public var totalReactionCount: Int {
+        reactions.values.reduce(0) { $0 + $1.count }
+    }
+    
+    /// 获取反应摘要（按表情分组）
+    public var reactionSummaries: [ReactionSummary] {
+        reactions.map { emoji, reactionList in
+            ReactionSummary(emoji: emoji, users: reactionList.map(\.userId))
+        }.sorted { $0.count > $1.count }  // 按反应数量降序
     }
 }
 

@@ -12,15 +12,22 @@ import Foundation
 final class MessageHandler {
     private weak var state: ChatState?
     private weak var presenceManager: PresenceManager?
+    private weak var reactionManager: ReactionManager?
     
-    init(state: ChatState, presenceManager: PresenceManager? = nil) {
+    init(state: ChatState, presenceManager: PresenceManager? = nil, reactionManager: ReactionManager? = nil) {
         self.state = state
         self.presenceManager = presenceManager
+        self.reactionManager = reactionManager
     }
     
     /// 设置 PresenceManager（用于延迟注入）
     func setPresenceManager(_ manager: PresenceManager) {
         self.presenceManager = manager
+    }
+    
+    /// 设置 ReactionManager（用于延迟注入）
+    func setReactionManager(_ manager: ReactionManager) {
+        self.reactionManager = manager
     }
     
     /// 处理接收到的数据
@@ -57,6 +64,10 @@ final class MessageHandler {
             handleMessageDelivered(obj)
         case "status_update":
             handleStatusUpdate(obj)
+        case "reaction_added":
+            handleReactionAdded(obj)
+        case "reaction_removed":
+            handleReactionRemoved(obj)
         default:
             handleChatMessage(obj, state: state)
         }
@@ -212,6 +223,18 @@ final class MessageHandler {
     /// 处理用户状态更新
     private func handleStatusUpdate(_ obj: [String: Any]) {
         presenceManager?.handleStatusUpdate(obj)
+    }
+    
+    // MARK: - ✨ P1: 表情反应处理
+    
+    /// 处理反应添加通知
+    private func handleReactionAdded(_ obj: [String: Any]) {
+        reactionManager?.handleReactionAdded(obj)
+    }
+    
+    /// 处理反应移除通知
+    private func handleReactionRemoved(_ obj: [String: Any]) {
+        reactionManager?.handleReactionRemoved(obj)
     }
 }
 

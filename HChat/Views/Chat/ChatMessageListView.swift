@@ -12,6 +12,11 @@ struct ChatMessageListView: View {
     var client: HackChatClient
     @Binding var searchText: String
     
+    // ✨ P1: 表情反应状态
+    @State private var showFullPicker = false
+    @State private var showReactionDetail = false
+    @State private var selectedMessage: ChatMessage?
+    
     var body: some View {
         VStack(spacing: 0) {
             // 搜索/过滤
@@ -23,11 +28,37 @@ struct ChatMessageListView: View {
             ScrollViewReader { proxy in
                 List {
                     ForEach(filteredMessages, id: \.id) { m in
-                        MessageRowView(message: m, myNick: client.myNick)
-                            .id(m.id)
+                        MessageRowView(
+                            message: m,
+                            myNick: client.myNick,
+                            onReactionTap: { emoji in
+                                handleReactionTap(emoji: emoji, message: m)
+                            },
+                            onShowReactionPicker: {
+                                selectedMessage = m
+                                showFullPicker = true
+                            },
+                            onShowReactionDetail: {
+                                selectedMessage = m
+                                showReactionDetail = true
+                            }
+                        )
+                        .id(m.id)
                     }
                 }
                 .listStyle(.plain)
+            }
+        }
+        .sheet(isPresented: $showFullPicker) {
+            if let message = selectedMessage {
+                FullEmojiReactionPicker { emoji in
+                    handleReactionTap(emoji: emoji, message: message)
+                }
+            }
+        }
+        .sheet(isPresented: $showReactionDetail) {
+            if let message = selectedMessage {
+                ReactionDetailView(message: message)
             }
         }
     }
@@ -37,6 +68,15 @@ struct ChatMessageListView: View {
         guard !searchText.isEmpty else { return all }
         let key = searchText.lowercased()
         return all.filter { $0.text.lowercased().contains(key) || $0.sender.lowercased().contains(key) }
+    }
+    
+    // ✨ P1: 处理反应点击
+    private func handleReactionTap(emoji: String, message: ChatMessage) {
+        client.reactionManager.toggleReaction(
+            emoji: emoji,
+            messageId: message.id,
+            channel: message.channel
+        )
     }
 }
 
