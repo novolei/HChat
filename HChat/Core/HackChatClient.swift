@@ -14,10 +14,20 @@ final class HackChatClient {
     var channels: [Channel] = [Channel(name: "lobby")]
     var currentChannel: String = "lobby"
     var messagesByChannel: [String: [ChatMessage]] = [:]
-    var myNick: String = "iOSUser"
+    var myNick: String {
+        get {
+            UserDefaults.standard.string(forKey: "myNick") ?? "iOSUser"
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "myNick")
+        }
+    }
     var passphraseForEndToEndEncryption: String = ""  // 群口令
     var onlineByRoom: [String: Set<String>] = [:]
     var onlineCountByRoom: [String: Int] = [:]
+    var shouldShowNicknamePrompt: Bool {
+        myNick == "iOSUser" || myNick.hasPrefix("iOSUser")
+    }
 
     private var webSocket: URLSessionWebSocketTask?
     private var sentMessageIds = Set<String>() // ✅ 去重关键（防自己重复 append）
@@ -104,10 +114,24 @@ final class HackChatClient {
     func sendDM(to nick: String, text: String) {
         let id = UUID().uuidString
         sentMessageIds.insert(id)
-        // 归入一个“pm/\(nick)”的本地会话
+        // 归入一个"pm/\(nick)"的本地会话
         let ch = "pm/\(nick)"
         appendMessage(ChatMessage(id: id, channel: ch, sender: myNick, text: text, isLocalEcho: true))
         send(json: ["type":"dm","id": id, "to": nick, "text": text])
+    }
+    
+    /// 修改昵称（用于UI调用，会同步到服务器）
+    func changeNick(_ newNick: String) {
+        let trimmedNick = newNick.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedNick.isEmpty else {
+            systemMessage("昵称不能为空")
+            return
+        }
+        
+        myNick = trimmedNick
+        send(json: ["type":"nick", "nick": trimmedNick])
+        DebugLogger.log("👤 修改昵称: \(trimmedNick)", level: .websocket)
+        systemMessage("昵称已更新为 \(trimmedNick)")
     }
 
     // MARK: - Receive
@@ -269,6 +293,10 @@ final class HackChatClient {
 
         case .nick(let name):
             myNick = name
+            // ✅ 发送 nick 命令到服务器，同步昵称
+            send(json: ["type":"nick", "nick": name])
+            DebugLogger.log("👤 发送昵称变更到服务器: \(name)", level: .websocket)
+            
             if let pass = CommandParser.extractPassphrase(fromNick: name) {
                 passphraseForEndToEndEncryption = pass
                 systemMessage("E2EE 群口令已更新")

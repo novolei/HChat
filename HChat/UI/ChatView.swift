@@ -13,6 +13,8 @@ struct ChatView: View {
     @State private var inputText: String = ""
     @State private var searchText: String = ""
     @State private var showCallSheet = false
+    @State private var showNicknamePrompt = false
+    @State private var nicknameInput: String = ""
 
 //    let minio = MinIOService(baseApi: URL(string: "https://hc.go-lv.com")!)
 //    lazy var uploader = UploadManager(minio: minio)
@@ -73,10 +75,23 @@ struct ChatView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showCallSheet = true
+                    Menu {
+                        Button {
+                            nicknameInput = client.myNick
+                            showNicknamePrompt = true
+                        } label: {
+                            Label("修改昵称 (\(client.myNick))", systemImage: "person.circle")
+                        }
+                        
+                        Divider()
+                        
+                        Button {
+                            showCallSheet = true
+                        } label: {
+                            Label("发起语音通话", systemImage: "phone.arrow.up.right")
+                        }
                     } label: {
-                        Image(systemName: "phone.arrow.up.right") // ☎︎
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
@@ -88,7 +103,27 @@ struct ChatView: View {
                 Text("未集成 LiveKit")
                 #endif
             }
-            .onAppear { NotificationManager.shared.configure() }
+            .alert("设置您的昵称", isPresented: $showNicknamePrompt) {
+                TextField("输入昵称", text: $nicknameInput)
+                Button("确定") {
+                    if !nicknameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        client.changeNick(nicknameInput)
+                    }
+                }
+                Button("取消", role: .cancel) { }
+            } message: {
+                Text("欢迎使用 HChat！请设置一个昵称，其他用户将看到这个名字。")
+            }
+            .onAppear {
+                NotificationManager.shared.configure()
+                
+                // ✅ 首次启动时提示设置昵称
+                if client.shouldShowNicknamePrompt {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showNicknamePrompt = true
+                    }
+                }
+            }
         }
     }
 
