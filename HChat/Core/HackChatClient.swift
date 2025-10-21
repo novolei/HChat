@@ -257,8 +257,13 @@ final class HackChatClient {
                 messagesByChannel[channel] = messages
             }
             
-            // ✅ 不显示更名通知，保持界面简洁
-            DebugLogger.log("✅ 昵称变更通知已处理: \(oldNick) → \(newNick)", level: .debug)
+            // ✅ 显示其他用户的昵称变更通知（不显示自己的）
+            if oldNick != myNick && newNick != myNick {
+                systemMessage("\(oldNick) 更名为 \(newNick)")
+                DebugLogger.log("👤 显示昵称变更通知: \(oldNick) → \(newNick)", level: .debug)
+            } else {
+                DebugLogger.log("✅ 昵称变更通知已处理（自己）: \(oldNick) → \(newNick)", level: .debug)
+            }
             return
         }
 
