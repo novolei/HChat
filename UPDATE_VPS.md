@@ -40,10 +40,13 @@ cd /root/hc-stack
 # 3. 拉取最新代码
 git pull origin main
 
-# 4. 重启 chat-gateway 服务
+# 4. 进入 Docker Compose 目录
+cd infra
+
+# 5. 重启 chat-gateway 服务
 docker compose restart chat-gateway
 
-# 5. 查看日志确认启动成功
+# 6. 查看日志确认启动成功
 docker compose logs -f chat-gateway
 ```
 

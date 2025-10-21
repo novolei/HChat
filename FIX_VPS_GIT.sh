@@ -24,11 +24,15 @@ echo "# 3️⃣ 拉取最新代码"
 echo "git pull origin main"
 echo ""
 
-echo "# 4️⃣ 重启服务"
+echo "# 4️⃣ 进入 Docker 目录"
+echo "cd infra"
+echo ""
+
+echo "# 5️⃣ 重启服务"
 echo "docker compose restart chat-gateway"
 echo ""
 
-echo "# 5️⃣ 查看日志"
+echo "# 6️⃣ 查看日志"
 echo "docker compose logs -f chat-gateway"
 echo ""
 
