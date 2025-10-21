@@ -48,6 +48,8 @@ final class HackChatClient {
     
     // MARK: - WebSocket
     private var webSocket: URLSessionWebSocketTask?
+    private var serverURL: URL?  // 保存服务器 URL 用于重连
+    private var whoTimer: Timer?  // 保存定时器引用以便清理
     
     /// 连接状态
     var isConnected: Bool {
@@ -78,6 +80,12 @@ final class HackChatClient {
     func connect(to url: URL) {
         DebugLogger.log("🔌 连接 WebSocket: \(url.absoluteString)", level: .websocket)
         
+        // 保存 URL 用于重连
+        self.serverURL = url
+        
+        // 清理旧的定时器
+        whoTimer?.invalidate()
+        
         let task = URLSession.shared.webSocketTask(with: url)
         self.webSocket = task
         task.resume()
@@ -97,7 +105,7 @@ final class HackChatClient {
         }
         
         // 周期性刷新在线列表
-        Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
+        whoTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
             guard let self else { return }
             self.send(json: ["type": "who", "room": self.state.currentChannel])
         }
@@ -107,8 +115,21 @@ final class HackChatClient {
     
     func disconnect() {
         DebugLogger.log("🔌 断开 WebSocket 连接", level: .websocket)
+        whoTimer?.invalidate()
+        whoTimer = nil
         webSocket?.cancel(with: .goingAway, reason: nil)
         webSocket = nil
+    }
+    
+    /// 重新连接到服务器
+    func reconnect() {
+        guard let url = serverURL else {
+            DebugLogger.log("⚠️ 无法重连：没有保存的服务器 URL", level: .warning)
+            return
+        }
+        
+        DebugLogger.log("🔄 尝试重新连接...", level: .info)
+        connect(to: url)
     }
     
     // MARK: - 发送消息
@@ -233,16 +254,28 @@ final class HackChatClient {
             
             switch result {
             case .failure(let e):
-                DebugLogger.log("❌ WebSocket 接收失败: \(e.localizedDescription)", level: .error)
-                // TLS 错误或连接断开，停止监听
-                if e.localizedDescription.contains("TLS") ||
-                   e.localizedDescription.contains("closed") ||
-                   e.localizedDescription.contains("cancelled") {
-                    DebugLogger.log("🔌 WebSocket 连接已断开，停止监听", level: .warning)
+                let errorMsg = e.localizedDescription
+                
+                // 检查是否是连接相关错误
+                let isConnectionError = errorMsg.contains("TLS") ||
+                                       errorMsg.contains("closed") ||
+                                       errorMsg.contains("cancelled") ||
+                                       errorMsg.contains("not connected") ||
+                                       errorMsg.contains("Socket is not connected")
+                
+                if isConnectionError {
+                    DebugLogger.log("🔌 WebSocket 连接已断开: \(errorMsg)", level: .warning)
                     shouldContinue = false
                     Task { @MainActor in
                         self.webSocket = nil
+                        // 自动重连（3秒后）
+                        DebugLogger.log("⏰ 将在 3 秒后自动重连...", level: .info)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                            self.reconnect()
+                        }
                     }
+                } else {
+                    DebugLogger.log("❌ WebSocket 接收失败: \(errorMsg)", level: .error)
                 }
             case .success(let msg):
                 switch msg {
