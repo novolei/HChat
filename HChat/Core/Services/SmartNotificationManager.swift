@@ -43,7 +43,7 @@ final class SmartNotificationManager {
     private let settingsKey = "notificationSettings"
     
     /// 通知设置
-    struct Settings: Codable {
+    struct Settings: Codable, Equatable {
         var enabled: Bool = true
         var urgentOnly: Bool = false
         var keywords: [String] = []
@@ -51,7 +51,7 @@ final class SmartNotificationManager {
         var workingHours: WorkingHours? = WorkingHours()
         var groupByChannel: Bool = true
         
-        struct WorkingHours: Codable {
+        struct WorkingHours: Codable, Equatable {
             var enabled: Bool = true
             var startHour: Int = 9    // 9:00
             var endHour: Int = 18      // 18:00
