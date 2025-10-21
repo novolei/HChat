@@ -18,6 +18,12 @@ struct ChatMessageListView: View {
     @State private var showReadReceiptDetail = false // ✨ P1: 已读回执详情
     @State private var selectedMessage: ChatMessage?
     
+    // ✨ Toast 通知
+    @State private var toastMessage: ToastMessage?
+    
+    // 滚动控制
+    @State private var shouldAutoScroll = true  // 是否自动滚动到底部
+    
     var body: some View {
         VStack(spacing: 0) {
             // 搜索/过滤
@@ -66,8 +72,23 @@ struct ChatMessageListView: View {
                     }
                 }
                 .listStyle(.plain)
+                .onChange(of: filteredMessages.count) { oldCount, newCount in
+                    // 当有新消息时自动滚动到底部
+                    if shouldAutoScroll, newCount > oldCount, let lastMsg = filteredMessages.last {
+                        withAnimation {
+                            proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                        }
+                    }
+                }
+                .onAppear {
+                    // 初次加载时滚动到底部
+                    if let lastMsg = filteredMessages.last {
+                        proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                    }
+                }
             }
         }
+        .toast($toastMessage)
         .sheet(isPresented: $showFullPicker) {
             if let message = selectedMessage {
                 FullEmojiReactionPicker { emoji in
@@ -101,6 +122,16 @@ struct ChatMessageListView: View {
             messageId: message.id,
             channel: message.channel
         )
+        
+        // 如果不是最近的消息，显示 Toast 提示
+        let isRecentMessage = filteredMessages.suffix(5).contains(where: { $0.id == message.id })
+        if !isRecentMessage {
+            toastMessage = ToastMessage(
+                text: "已对 \(message.sender) 的消息添加反应 \(emoji)",
+                icon: "hand.thumbsup.fill",
+                duration: 2.0
+            )
+        }
     }
 }
 
