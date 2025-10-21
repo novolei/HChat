@@ -1,0 +1,155 @@
+//
+//  MessageHandler.swift
+//  HChat
+//
+//  Created by AI Assistant on 2025/10/21.
+//  消息接收和处理逻辑
+//
+
+import Foundation
+
+@MainActor
+final class MessageHandler {
+    private weak var state: ChatState?
+    
+    init(state: ChatState) {
+        self.state = state
+    }
+    
+    /// 处理接收到的数据
+    func handle(data: Data) async {
+        guard let state = state else { return }
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        
+        // 记录接收的消息
+        if let jsonString = String(data: data, encoding: .utf8) {
+            let isEncrypted = (obj["text"] as? String)?.hasPrefix("E2EE:") ?? false
+            let displayMsg = isEncrypted ? "[加密消息 from \(obj["nick"] ?? "unknown")]" : jsonString
+            DebugLogger.logWebSocket(direction: "接收", message: displayMsg, encrypted: isEncrypted)
+        }
+        
+        let type = (obj["type"] as? String) ?? "message"
+        
+        // 处理不同类型的消息
+        switch type {
+        case "presence":
+            handlePresence(obj, state: state)
+        case "nick_change":
+            handleNicknameChange(obj, state: state)
+        case "dm":
+            handleDirectMessage(obj, state: state)
+        case "user_joined":
+            handleUserJoined(obj, state: state)
+        case "user_left":
+            handleUserLeft(obj, state: state)
+        case "info":
+            handleInfo(obj, state: state)
+        default:
+            handleChatMessage(obj, state: state)
+        }
+    }
+    
+    // MARK: - 私有处理方法
+    
+    private func handlePresence(_ obj: [String: Any], state: ChatState) {
+        let room = (obj["room"] as? String) ?? state.currentChannel
+        let users = (obj["users"] as? [String]) ?? []
+        let count = obj["count"] as? Int
+        state.updateOnlineUsers(room: room, users: users, count: count)
+    }
+    
+    private func handleNicknameChange(_ obj: [String: Any], state: ChatState) {
+        let oldNick = (obj["oldNick"] as? String) ?? ""
+        let newNick = (obj["newNick"] as? String) ?? ""
+        let channel = (obj["channel"] as? String) ?? state.currentChannel
+        
+        DebugLogger.log("👤 昵称变更: \(oldNick) → \(newNick) (频道: \(channel))", level: .debug)
+        
+        // 更新该频道所有消息中的发送者昵称
+        state.updateNickname(oldNick: oldNick, newNick: newNick, in: channel)
+        
+        // 显示其他用户的昵称变更通知（不显示自己的）
+        if oldNick != state.myNick && newNick != state.myNick {
+            state.systemMessage("\(oldNick) 更名为 \(newNick)")
+            DebugLogger.log("👤 显示昵称变更通知: \(oldNick) → \(newNick)", level: .debug)
+        } else {
+            DebugLogger.log("✅ 昵称变更通知已处理（自己）: \(oldNick) → \(newNick)", level: .debug)
+        }
+    }
+    
+    private func handleDirectMessage(_ obj: [String: Any], state: ChatState) {
+        let msgId = (obj["id"] as? String) ?? UUID().uuidString
+        
+        // 去重检查
+        if state.isMessageAlreadySent(id: msgId) { return }
+        
+        let from = (obj["from"] as? String) ?? "unknown"
+        let to = (obj["to"] as? String) ?? ""
+        let text = (obj["text"] as? String) ?? ""
+        let ch = "pm/" + ((from == state.myNick) ? to : from)
+        
+        state.appendMessage(ChatMessage(id: msgId, channel: ch, sender: from, text: text))
+    }
+    
+    private func handleUserJoined(_ obj: [String: Any], state: ChatState) {
+        let nick = (obj["nick"] as? String) ?? "someone"
+        let channel = (obj["channel"] as? String) ?? state.currentChannel
+        DebugLogger.log("👋 用户加入: \(nick) → #\(channel)", level: .debug)
+        state.systemMessage("\(nick) 加入了 #\(channel)")
+    }
+    
+    private func handleUserLeft(_ obj: [String: Any], state: ChatState) {
+        let nick = (obj["nick"] as? String) ?? "someone"
+        let channel = (obj["channel"] as? String) ?? state.currentChannel
+        DebugLogger.log("👋 用户离开: \(nick) ← #\(channel)", level: .debug)
+        state.systemMessage("\(nick) 离开了 #\(channel)")
+    }
+    
+    private func handleInfo(_ obj: [String: Any], state: ChatState) {
+        let text = (obj["text"] as? String) ?? ""
+        
+        // 过滤昵称相关的 info 消息（保持界面简洁）
+        if text.contains("昵称已更改为") || text.hasPrefix("joined #") {
+            DebugLogger.log("🚫 过滤 info 消息: \(text)", level: .debug)
+            return
+        }
+        
+        // 其他 info 消息可以显示（如果需要）
+        // state.systemMessage(text)
+    }
+    
+    private func handleChatMessage(_ obj: [String: Any], state: ChatState) {
+        let msgId = (obj["id"] as? String) ?? UUID().uuidString
+        let channel = (obj["channel"] as? String) ?? state.currentChannel
+        let nick = (obj["nick"] as? String) ?? "server"
+        let text = (obj["text"] as? String) ?? ""
+        
+        DebugLogger.log("📥 收到消息 - ID: \(msgId), nick: \(nick), text: \(text.prefix(30))", level: .debug)
+        
+        // 解析附件
+        var attachments: [Attachment] = []
+        if let a = obj["attachment"] as? [String: Any],
+           let urlStr = a["url"] as? String,
+           let u = URL(string: urlStr) {
+            let kind = Attachment.Kind(rawValue: (a["kind"] as? String) ?? "file") ?? .file
+            let fn = (a["filename"] as? String) ?? "attachment"
+            attachments = [Attachment(kind: kind, filename: fn, contentType: "application/octet-stream", putUrl: nil, getUrl: u, sizeBytes: nil)]
+        }
+        
+        // 去重：若是自己刚发的 msgId，则不再追加
+        if state.isMessageAlreadySent(id: msgId) {
+            DebugLogger.log("✅ 去重成功 - 忽略自己发送的消息 ID: \(msgId)", level: .debug)
+            return
+        }
+        
+        DebugLogger.log("📝 添加消息到列表 - ID: \(msgId), from: \(nick)", level: .debug)
+        let message = ChatMessage(id: msgId, channel: channel, sender: nick, text: text, attachments: attachments)
+        state.appendMessage(message)
+        
+        // @ 提及通知
+        if text.contains("@\(state.myNick)") {
+            NotificationManager.shared.notifyMention(channel: channel, from: nick, text: text)
+        }
+    }
+}
+

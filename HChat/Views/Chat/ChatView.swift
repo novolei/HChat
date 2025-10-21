@@ -1,0 +1,112 @@
+//
+//  ChatView.swift
+//  HChat
+//
+//  Created by Ryan Liu on 2025/10/21.
+//  重构版本：主视图协调器
+//
+
+import SwiftUI
+
+struct ChatView: View {
+    var client: HackChatClient
+    @State var callManager = CallManager()
+    
+    @State private var inputText: String = ""
+    @State private var searchText: String = ""
+    @State private var showCallSheet = false
+    @State private var showNicknamePrompt = false
+    @State private var nicknameInput: String = ""
+    
+    let uploader = Services.uploader
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // 消息列表
+                ChatMessageListView(client: client, searchText: $searchText)
+                
+                // 输入框
+                ChatInputView(
+                    client: client,
+                    inputText: $inputText,
+                    onSend: sendOnce,
+                    onAttachment: showPhotoPicker
+                )
+            }
+            .navigationTitle("#\(client.currentChannel)\(client.onlineCountByRoom[client.currentChannel].map { " · \($0) 在线" } ?? "")")
+            .toolbar {
+                ChatToolbar(
+                    client: client,
+                    showNicknamePrompt: $showNicknamePrompt,
+                    nicknameInput: $nicknameInput,
+                    showCallSheet: $showCallSheet,
+                    onCreateChannel: createChannelPrompt,
+                    onStartPrivateChat: startPrivateChatPrompt
+                )
+            }
+            .sheet(isPresented: $showCallSheet) {
+                #if canImport(LiveKit)
+                CallView(roomName: client.currentChannel, identity: client.myNick)
+                    .presentationDetents([.medium])
+                #else
+                Text("未集成 LiveKit")
+                #endif
+            }
+            .alert("设置您的昵称", isPresented: $showNicknamePrompt) {
+                TextField("输入昵称", text: $nicknameInput)
+                Button("确定") {
+                    if !nicknameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        client.changeNick(nicknameInput)
+                    }
+                }
+                Button("取消", role: .cancel) { }
+            } message: {
+                Text("欢迎使用 HChat！请设置一个昵称，其他用户将看到这个名字。")
+            }
+            .onAppear {
+                NotificationManager.shared.configure()
+                
+                // 首次启动时提示设置昵称
+                if client.shouldShowNicknamePrompt {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showNicknamePrompt = true
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - 私有方法
+    
+    private func sendOnce() {
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        client.sendText(text)
+        inputText = ""
+    }
+    
+    private func showPhotoPicker() {
+        // 从剪贴板粘图（可替换为系统 PhotosPicker）
+        if let img = UIPasteboard.general.image, let data = img.pngData() {
+            Task {
+                do {
+                    let att = try await uploader.prepareImageAttachment(data, filename: "image.png")
+                    client.sendAttachment(att)
+                } catch {
+                    print("upload error:", error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func createChannelPrompt() {
+        let name = "room-\(Int.random(in: 100...999))"
+        client.sendText("/join \(name)")
+    }
+    
+    private func startPrivateChatPrompt() {
+        let pm = "pm-\(Int.random(in: 1000...9999))"
+        client.sendText("/join \(pm)")
+    }
+}
