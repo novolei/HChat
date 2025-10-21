@@ -10,7 +10,7 @@ import Foundation
 import SwiftUI
 
 /// 消息送达状态
-enum MessageStatus: String, Codable {
+public enum MessageStatus: String, Codable {
     case sending    // 📤 发送中
     case sent       // ✓ 已送达服务器
     case delivered  // ✓✓ 已送达对方
@@ -59,17 +59,3 @@ enum MessageStatus: String, Codable {
         self == .delivered || self == .read
     }
 }
-
-// MARK: - ChatMessage 扩展
-extension ChatMessage {
-    /// 消息状态（默认为已读，向下兼容）
-    var status: MessageStatus {
-        // 如果是本地回显消息，状态为发送中
-        if isLocalEcho {
-            return .sending
-        }
-        // 其他消息默认为已读（向下兼容现有代码）
-        return .read
-    }
-}
-
