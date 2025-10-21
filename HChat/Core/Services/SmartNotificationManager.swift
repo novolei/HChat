@@ -140,7 +140,10 @@ final class SmartNotificationManager {
         content.sound = NotificationPriority.urgent.sound
         content.threadIdentifier = channel
         content.interruptionLevel = NotificationPriority.urgent.interruptionLevel
-        content.badge = NSNumber(value: 1)
+        
+        // ✅ Badge - 使用累加的未读消息数
+        BadgeManager.shared.incrementUnread()
+        content.badge = NSNumber(value: BadgeManager.shared.getCurrentBadgeCount())
         
         await send(content: content, identifier: "mention-\(UUID().uuidString)")
     }
@@ -271,8 +274,9 @@ final class SmartNotificationManager {
             content.summaryArgument = message.channel
         }
         
-        // Badge
-        content.badge = NSNumber(value: 1)
+        // ✅ Badge - 使用累加的未读消息数
+        BadgeManager.shared.incrementUnread()
+        content.badge = NSNumber(value: BadgeManager.shared.getCurrentBadgeCount())
         
         return content
     }

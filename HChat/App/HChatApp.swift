@@ -4,6 +4,7 @@ import UserNotifications
 @main
 struct HChatApp: App {
     @State var client = HackChatClient()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -19,6 +20,20 @@ struct HChatApp: App {
                         client.connect(to: url)
                     }
                 }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            switch newPhase {
+            case .active:
+                // ✅ App 进入前台，清空 Badge
+                DebugLogger.log("🟢 App 进入前台，清空 Badge", level: .info)
+                BadgeManager.shared.clearUnread()
+            case .inactive:
+                DebugLogger.log("🟡 App 进入非活动状态", level: .debug)
+            case .background:
+                DebugLogger.log("🔵 App 进入后台", level: .debug)
+            @unknown default:
+                break
+            }
         }
     }
 }
