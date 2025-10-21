@@ -81,11 +81,12 @@ struct MessageRowView: View {
                     AttachmentCard(attachment: a)
                 }
                 
-                // ✨ P1: 表情反应气泡（始终显示在消息下方）
+                // ✨ P1: 表情反应气泡（显示在消息下方，对齐方式跟随消息）
                 if message.hasReactions {
                     ReactionBubblesView(
                         message: message,
                         myNick: myNick,
+                        alignment: isMyMessage ? .trailing : .leading,
                         onTapReaction: { emoji in
                             onReactionTap?(emoji)
                         },

@@ -123,37 +123,40 @@ struct ReactionBubble: View {
 struct ReactionBubblesView: View {
     let message: ChatMessage
     let myNick: String
+    let alignment: HorizontalAlignment  // 对齐方式：.leading（左）或 .trailing（右）
     let onTapReaction: (String) -> Void
     let onShowMore: () -> Void
     
     var body: some View {
         if message.hasReactions {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(message.reactionSummaries, id: \.emoji) { summary in
-                        ReactionBubble(
-                            emoji: summary.emoji,
-                            count: summary.count,
-                            isMyReaction: summary.contains(user: myNick)
-                        ) {
-                            onTapReaction(summary.emoji)
+            VStack(alignment: alignment, spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(message.reactionSummaries, id: \.emoji) { summary in
+                            ReactionBubble(
+                                emoji: summary.emoji,
+                                count: summary.count,
+                                isMyReaction: summary.contains(user: myNick)
+                            ) {
+                                onTapReaction(summary.emoji)
+                            }
                         }
+                        
+                        // 添加反应按钮
+                        Button {
+                            onShowMore()
+                        } label: {
+                            Image(systemName: "plus.circle")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                                .frame(width: 28, height: 28)
+                                .background(Color(.systemGray6))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    
-                    // 添加反应按钮
-                    Button {
-                        onShowMore()
-                    } label: {
-                        Image(systemName: "plus.circle")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .frame(width: 28, height: 28)
-                            .background(Color(.systemGray6))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 4)
             }
         }
     }
