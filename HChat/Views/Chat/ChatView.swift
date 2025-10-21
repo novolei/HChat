@@ -17,6 +17,8 @@ struct ChatView: View {
     @State private var showCallSheet = false
     @State private var showNicknamePrompt = false
     @State private var nicknameInput: String = ""
+    @State private var showStatusPicker = false
+    @State private var showOnlineUsers = false
     
     let uploader = Services.uploader
     
@@ -41,6 +43,8 @@ struct ChatView: View {
                     showNicknamePrompt: $showNicknamePrompt,
                     nicknameInput: $nicknameInput,
                     showCallSheet: $showCallSheet,
+                    showStatusPicker: $showStatusPicker,
+                    showOnlineUsers: $showOnlineUsers,
                     onCreateChannel: createChannelPrompt,
                     onStartPrivateChat: startPrivateChatPrompt
                 )
@@ -52,6 +56,22 @@ struct ChatView: View {
                 #else
                 Text("未集成 LiveKit")
                 #endif
+            }
+            .sheet(isPresented: $showStatusPicker) {
+                StatusPickerView(
+                    currentStatus: Binding(
+                        get: { client.presenceManager.myStatus },
+                        set: { _ in }
+                    ),
+                    onStatusChange: { newStatus in
+                        client.presenceManager.updateMyStatus(newStatus)
+                    }
+                )
+                .presentationDetents([.medium])
+            }
+            .sheet(isPresented: $showOnlineUsers) {
+                OnlineUsersView(client: client)
+                    .presentationDetents([.medium, .large])
             }
             .alert("设置您的昵称", isPresented: $showNicknamePrompt) {
                 TextField("输入昵称", text: $nicknameInput)

@@ -11,9 +11,16 @@ import Foundation
 @MainActor
 final class MessageHandler {
     private weak var state: ChatState?
+    private weak var presenceManager: PresenceManager?
     
-    init(state: ChatState) {
+    init(state: ChatState, presenceManager: PresenceManager? = nil) {
         self.state = state
+        self.presenceManager = presenceManager
+    }
+    
+    /// 设置 PresenceManager（用于延迟注入）
+    func setPresenceManager(_ manager: PresenceManager) {
+        self.presenceManager = manager
     }
     
     /// 处理接收到的数据
@@ -48,6 +55,8 @@ final class MessageHandler {
             handleMessageAck(obj)
         case "message_delivered":
             handleMessageDelivered(obj)
+        case "status_update":
+            handleStatusUpdate(obj)
         default:
             handleChatMessage(obj, state: state)
         }
@@ -60,6 +69,9 @@ final class MessageHandler {
         let users = (obj["users"] as? [String]) ?? []
         let count = obj["count"] as? Int
         state.updateOnlineUsers(room: room, users: users, count: count)
+        
+        // ✨ P1: 批量更新在线用户状态
+        presenceManager?.updateOnlineUsers(users, channel: room)
     }
     
     private func handleNicknameChange(_ obj: [String: Any], state: ChatState) {
@@ -100,6 +112,9 @@ final class MessageHandler {
         let channel = (obj["channel"] as? String) ?? state.currentChannel
         DebugLogger.log("👋 用户加入: \(nick) → #\(channel)", level: .debug)
         state.systemMessage("\(nick) 加入了 #\(channel)")
+        
+        // ✨ P1: 更新在线状态
+        presenceManager?.handleUserJoined(nick: nick, channel: channel)
     }
     
     private func handleUserLeft(_ obj: [String: Any], state: ChatState) {
@@ -107,6 +122,9 @@ final class MessageHandler {
         let channel = (obj["channel"] as? String) ?? state.currentChannel
         DebugLogger.log("👋 用户离开: \(nick) ← #\(channel)", level: .debug)
         state.systemMessage("\(nick) 离开了 #\(channel)")
+        
+        // ✨ P1: 更新在线状态
+        presenceManager?.handleUserLeft(nick: nick, channel: channel)
     }
     
     private func handleInfo(_ obj: [String: Any], state: ChatState) {
@@ -187,6 +205,13 @@ final class MessageHandler {
             object: nil,
             userInfo: ["messageId": messageId, "deliveredTo": deliveredTo]
         )
+    }
+    
+    // MARK: - ✨ P1: 在线状态处理
+    
+    /// 处理用户状态更新
+    private func handleStatusUpdate(_ obj: [String: Any]) {
+        presenceManager?.handleStatusUpdate(obj)
     }
 }
 

@@ -41,6 +41,10 @@ final class HackChatClient {
     // MARK: - 消息队列（P0 功能）
     private(set) var messageQueue: MessageQueue!
     
+    // MARK: - P0/P1 功能管理器
+    let searchEngine: MessageSearchEngine  // 搜索引擎
+    let presenceManager: PresenceManager   // 在线状态管理器
+    
     // MARK: - WebSocket
     private var webSocket: URLSessionWebSocketTask?
     
@@ -52,12 +56,18 @@ final class HackChatClient {
     // MARK: - 初始化
     init() {
         self.state = ChatState()
-        self.messageHandler = MessageHandler(state: state)
+        self.searchEngine = MessageSearchEngine()
+        self.presenceManager = PresenceManager()
+        
+        self.messageHandler = MessageHandler(state: state, presenceManager: presenceManager)
         self.commandHandler = CommandHandler(state: state, sendMessage: { [weak self] json in
             self?.send(json: json)
         })
         self.messageQueue = MessageQueue(client: nil)  // 先初始化为 nil
         self.messageQueue = MessageQueue(client: self) // 然后设置为 self
+        
+        // 设置 presenceManager 的客户端引用
+        self.presenceManager.setClient(self)
     }
     
     // MARK: - 连接管理

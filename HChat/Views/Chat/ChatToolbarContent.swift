@@ -13,6 +13,8 @@ struct ChatToolbar: ToolbarContent {
     @Binding var showNicknamePrompt: Bool
     @Binding var nicknameInput: String
     @Binding var showCallSheet: Bool
+    @Binding var showStatusPicker: Bool
+    @Binding var showOnlineUsers: Bool
     var onCreateChannel: () -> Void
     var onStartPrivateChat: () -> Void
     
@@ -39,6 +41,20 @@ struct ChatToolbar: ToolbarContent {
                     showNicknamePrompt = true
                 } label: {
                     Label("修改昵称 (\(client.myNick))", systemImage: "person.circle")
+                }
+                
+                // ✨ P1: 状态选择器
+                Button {
+                    showStatusPicker = true
+                } label: {
+                    Label("设置状态 (\(client.presenceManager.myStatus.emoji) \(client.presenceManager.myStatus.displayName))", systemImage: "figure.wave")
+                }
+                
+                // ✨ P1: 在线用户列表
+                Button {
+                    showOnlineUsers = true
+                } label: {
+                    Label("在线用户 (\(client.onlineCountByRoom[client.currentChannel] ?? 0))", systemImage: "person.2")
                 }
                 
                 Divider()
