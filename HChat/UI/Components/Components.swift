@@ -19,61 +19,100 @@ struct MessageRowView: View {
     var onShowReadReceipts: (() -> Void)? = nil            // ✨ P1: 显示已读回执
     
     @State private var showQuickPicker = false
+    
+    // 是否是自己发送的消息
+    private var isMyMessage: Bool {
+        message.sender == myNick
+    }
+    
+    // 气泡背景颜色
+    private var bubbleColor: Color {
+        if message.sender == "system" {
+            return Color.gray.opacity(0.1)
+        }
+        return isMyMessage ? Color.blue : Color.gray.opacity(0.15)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text(message.sender == "system" ? "•" : message.sender)
-                    .font(.subheadline.weight(.semibold))
-                
-                // 时间戳和状态指示器
-                MessageTimestampWithStatus(message: message, myNick: myNick)
-            }
-            .opacity(0.9)
-            
-            // ✨ P1: 显示引用的消息
-            if let reply = message.replyTo {
-                QuotedMessageView(reply: reply) {
-                    onJumpToReply?(reply.messageId)
-                }
-            }
-
-            if !message.text.isEmpty {
-                RichText(message: message, myNick: myNick)
-            }
-
-            ForEach(message.attachments) { a in
-                AttachmentCard(attachment: a)
+        HStack(alignment: .top, spacing: 8) {
+            // 左边占位（自己的消息）
+            if isMyMessage {
+                Spacer(minLength: 60)
             }
             
-            // ✨ P1: 表情反应气泡
-            if message.hasReactions {
-                ReactionBubblesView(
-                    message: message,
-                    myNick: myNick,
-                    onTapReaction: { emoji in
-                        onReactionTap?(emoji)
-                    },
-                    onShowMore: {
-                        onShowReactionPicker?()
+            // 消息气泡内容
+            VStack(alignment: isMyMessage ? .trailing : .leading, spacing: 6) {
+                // 发送者和时间（不是自己的消息才显示发送者）
+                if !isMyMessage || message.sender == "system" {
+                    HStack(spacing: 8) {
+                        Text(message.sender == "system" ? "•" : message.sender)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.secondary)
+                        
+                        // 时间戳和状态指示器
+                        MessageTimestampWithStatus(message: message, myNick: myNick)
                     }
-                )
+                    .opacity(0.9)
+                } else {
+                    // 自己的消息：只显示时间和状态
+                    HStack(spacing: 8) {
+                        MessageTimestampWithStatus(message: message, myNick: myNick)
+                    }
+                    .opacity(0.9)
+                }
+                
+                // ✨ P1: 显示引用的消息
+                if let reply = message.replyTo {
+                    QuotedMessageView(reply: reply) {
+                        onJumpToReply?(reply.messageId)
+                    }
+                }
+
+                if !message.text.isEmpty {
+                    RichText(message: message, myNick: myNick)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(bubbleColor)
+                        .foregroundColor(isMyMessage ? .white : .primary)
+                        .cornerRadius(16)
+                }
+
+                ForEach(message.attachments) { a in
+                    AttachmentCard(attachment: a)
+                }
+                
+                // ✨ P1: 表情反应气泡
+                if message.hasReactions {
+                    ReactionBubblesView(
+                        message: message,
+                        myNick: myNick,
+                        onTapReaction: { emoji in
+                            onReactionTap?(emoji)
+                        },
+                        onShowMore: {
+                            onShowReactionPicker?()
+                        }
+                    )
+                }
+                
+                // ✨ P1: 已读回执指示器
+                if message.hasReadReceipts && message.sender == myNick {
+                    Button {
+                        onShowReadReceipts?()
+                    } label: {
+                        ReadReceiptIndicator(message: message, showDetails: true)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             
-            // ✨ P1: 已读回执指示器
-            if message.hasReadReceipts && message.sender == myNick {
-                Button {
-                    onShowReadReceipts?()
-                } label: {
-                    ReadReceiptIndicator(message: message, showDetails: true)
-                }
-                .buttonStyle(.plain)
+            // 右边占位（别人的消息）
+            if !isMyMessage {
+                Spacer(minLength: 60)
             }
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(message.isLocalEcho ? Color.primary.opacity(0.03) : .clear)
-        .cornerRadius(8)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 12)
         .contextMenu {
             // ✨ P1: 回复消息
             Button {
