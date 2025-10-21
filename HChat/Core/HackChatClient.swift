@@ -115,9 +115,19 @@ final class HackChatClient {
         guard let ws = webSocket else { return }
         ws.receive { [weak self] result in
             guard let self else { return }
+            
+            var shouldContinue = true
+            
             switch result {
             case .failure(let e):
-                print("ws receive error:", e.localizedDescription)
+                DebugLogger.log("❌ WebSocket 接收失败: \(e.localizedDescription)", level: .error)
+                // TLS 错误或连接断开，不再继续 listen
+                if e.localizedDescription.contains("TLS") || 
+                   e.localizedDescription.contains("closed") ||
+                   e.localizedDescription.contains("cancelled") {
+                    DebugLogger.log("🔌 WebSocket 连接已断开，停止监听", level: .warning)
+                    shouldContinue = false
+                }
             case .success(let msg):
                 switch msg {
                 case .data(let d): 
@@ -135,8 +145,12 @@ final class HackChatClient {
                 @unknown default: break
                 }
             }
-            Task { @MainActor [weak self] in
-                self?.listen()
+            
+            // 只有在应该继续时才递归调用 listen
+            if shouldContinue {
+                Task { @MainActor [weak self] in
+                    self?.listen()
+                }
             }
         }
     }
