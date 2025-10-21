@@ -25,8 +25,9 @@ struct MessageRowView: View {
             HStack(spacing: 8) {
                 Text(message.sender == "system" ? "•" : message.sender)
                     .font(.subheadline.weight(.semibold))
-                Text(message.timestamp, style: .time)
-                    .font(.caption2).foregroundStyle(.secondary)
+                
+                // 时间戳和状态指示器
+                MessageTimestampWithStatus(message: message, myNick: myNick)
             }
             .opacity(0.9)
             

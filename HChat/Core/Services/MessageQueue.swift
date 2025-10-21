@@ -191,6 +191,17 @@ final class MessageQueue {
         do {
             try persistence.updateStatus(messageId: messageId, status: status)
             
+            // ✨ P0: 同时更新 ChatState 中的消息状态（用于 UI 显示）
+            if let client = client {
+                // 遍历所有频道查找消息
+                for (channel, messages) in client.state.messagesByChannel {
+                    if messages.contains(where: { $0.id == messageId }) {
+                        client.state.updateMessageStatus(id: messageId, channel: channel, status: status)
+                        break
+                    }
+                }
+            }
+            
             // 如果已送达，从队列移除
             if status.isCompleted {
                 try persistence.removePending(messageId: messageId)

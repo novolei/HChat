@@ -118,5 +118,36 @@ final class ChatState {
         onlineByRoom[room] = Set(users)
         onlineCountByRoom[room] = count ?? users.count
     }
+    
+    // MARK: - ✨ P0: 消息状态更新
+    
+    /// 更新消息状态
+    func updateMessageStatus(id: String, channel: String, status: MessageStatus) {
+        guard var messages = messagesByChannel[channel] else { return }
+        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        
+        messages[index].status = status
+        messagesByChannel[channel] = messages
+        
+        DebugLogger.log("🔄 消息状态已更新: \(id) -> \(status.rawValue)", level: .debug)
+    }
+    
+    /// 批量更新消息状态
+    func updateMessagesStatus(ids: [String], channel: String, status: MessageStatus) {
+        guard var messages = messagesByChannel[channel] else { return }
+        
+        var updated = false
+        for id in ids {
+            if let index = messages.firstIndex(where: { $0.id == id }) {
+                messages[index].status = status
+                updated = true
+            }
+        }
+        
+        if updated {
+            messagesByChannel[channel] = messages
+            DebugLogger.log("🔄 批量更新消息状态: \(ids.count) 条 -> \(status.rawValue)", level: .debug)
+        }
+    }
 }
 

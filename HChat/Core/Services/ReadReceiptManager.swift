@@ -77,6 +77,12 @@ final class ReadReceiptManager {
                 timestamp: Date(timeIntervalSince1970: timestamp)
             )
             message.readReceipts.append(receipt)
+            
+            // ✨ P1: 如果是自己发送的消息，更新状态为已读
+            if message.sender == client?.myNick {
+                message.status = .read
+            }
+            
             state.messagesByChannel[channel]?[messageIndex] = message
             
             DebugLogger.log("✓ 收到已读回执: \(messageId) by \(userId)", level: .debug)
