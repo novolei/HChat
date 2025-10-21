@@ -60,10 +60,11 @@ final class HackChatClient {
     // MARK: - Send
     func sendText(_ text: String) {
         if let cmd = CommandParser.parse(text) { handleCommand(cmd); return }
-            let id = UUID().uuidString
-            sentMessageIds.insert(id)
-            appendMessage(ChatMessage(id: id, channel: currentChannel, sender: myNick, text: text, isLocalEcho: true))
-            send(json: ["type":"message","id": id, "room": currentChannel, "text": text])
+        let id = UUID().uuidString
+        sentMessageIds.insert(id)
+        DebugLogger.log("📤 本地添加消息 (Local Echo) - ID: \(id), text: \(text.prefix(30))", level: .debug)
+        appendMessage(ChatMessage(id: id, channel: currentChannel, sender: myNick, text: text, isLocalEcho: true))
+        send(json: ["type":"message","id": id, "room": currentChannel, "text": text])
     }
 
     func sendAttachment(_ attachment: Attachment) {
@@ -181,6 +182,9 @@ final class HackChatClient {
         let channel = (obj["channel"] as? String) ?? currentChannel
         let nick = (obj["nick"] as? String) ?? "server"
         let text = (obj["text"] as? String) ?? ""
+        
+        DebugLogger.log("📥 收到消息 - ID: \(msgId), nick: \(nick), text: \(text.prefix(30))", level: .debug)
+        
         var attachments: [Attachment] = []
         if let a = obj["attachment"] as? [String: Any],
            let urlStr = a["url"] as? String,
@@ -190,11 +194,14 @@ final class HackChatClient {
             attachments = [Attachment(kind: kind, filename: fn, contentType: "application/octet-stream", putUrl: nil, getUrl: u, sizeBytes: nil)]
         }
 
-        // ✅ 去重策略：若是自己刚发的 msgId，则不再追加（避免“双发”）
+        // ✅ 去重策略：若是自己刚发的 msgId，则不再追加（避免"双发"）
         if sentMessageIds.contains(msgId) {
+            DebugLogger.log("✅ 去重成功 - 忽略自己发送的消息 ID: \(msgId)", level: .debug)
             sentMessageIds.remove(msgId)
             return
         }
+        
+        DebugLogger.log("📝 添加消息到列表 - ID: \(msgId), from: \(nick)", level: .debug)
         let message = ChatMessage(id: msgId, channel: channel, sender: nick, text: text, attachments: attachments)
         appendMessage(message)
 
@@ -245,6 +252,7 @@ final class HackChatClient {
     }
 
     private func appendMessage(_ m: ChatMessage) {
+        DebugLogger.log("➕ appendMessage - ID: \(m.id), channel: \(m.channel), sender: \(m.sender), isLocalEcho: \(m.isLocalEcho)", level: .debug)
         var arr = messagesByChannel[m.channel, default: []]
         arr.append(m)
         messagesByChannel[m.channel] = arr
