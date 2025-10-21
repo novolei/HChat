@@ -83,16 +83,24 @@ struct MessageRowView: View {
                 
                 // ✨ P1: 表情反应气泡
                 if message.hasReactions {
-                    ReactionBubblesView(
-                        message: message,
-                        myNick: myNick,
-                        onTapReaction: { emoji in
-                            onReactionTap?(emoji)
-                        },
-                        onShowMore: {
-                            onShowReactionPicker?()
+                    HStack {
+                        if isMyMessage {
+                            Spacer()
                         }
-                    )
+                        ReactionBubblesView(
+                            message: message,
+                            myNick: myNick,
+                            onTapReaction: { emoji in
+                                onReactionTap?(emoji)
+                            },
+                            onShowMore: {
+                                onShowReactionPicker?()
+                            }
+                        )
+                        if !isMyMessage {
+                            Spacer()
+                        }
+                    }
                 }
                 
                 // ✨ P1: 已读回执指示器
