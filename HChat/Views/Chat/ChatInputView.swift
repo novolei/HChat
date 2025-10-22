@@ -15,6 +15,7 @@ struct ChatInputView: View {
     var onAttachment: () -> Void
     
     @FocusState private var isInputFocused: Bool
+    @State private var lastTypingTime: Date?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -53,6 +54,9 @@ struct ChatInputView: View {
                 .lineLimit(1...6)
                 .font(HChatTheme.bodyFont)
                 .focused($isInputFocused)
+                .onChange(of: inputText) { _, newValue in
+                    handleTypingChange(newValue)
+                }
                 .onSubmit {
                     if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         onSend()
@@ -93,6 +97,24 @@ struct ChatInputView: View {
             .padding(.vertical, ModernTheme.spacing3)
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
+    }
+    
+    // MARK: - 正在输入处理
+    
+    /// 处理输入变化，发送正在输入事件（节流：每 2 秒最多发送一次）
+    private func handleTypingChange(_ text: String) {
+        guard !text.isEmpty else { return }
+        
+        let now = Date()
+        
+        // 如果距离上次发送不到 2 秒，不发送
+        if let lastTime = lastTypingTime, now.timeIntervalSince(lastTime) < 2.0 {
+            return
+        }
+        
+        // 发送正在输入事件
+        client.typingIndicatorManager.sendTypingStatus(channel: client.currentChannel)
+        lastTypingTime = now
     }
 }
 

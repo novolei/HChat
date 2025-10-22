@@ -15,13 +15,15 @@ final class MessageHandler {
     private weak var reactionManager: ReactionManager?
     private weak var replyManager: ReplyManager? // ✨ P1: 消息引用/回复管理器
     private weak var readReceiptManager: ReadReceiptManager? // ✨ P1: 已读回执管理器
+    private weak var typingIndicatorManager: TypingIndicatorManager? // 正在输入指示器
     
-    init(state: ChatState, presenceManager: PresenceManager? = nil, reactionManager: ReactionManager? = nil, replyManager: ReplyManager? = nil, readReceiptManager: ReadReceiptManager? = nil) {
+    init(state: ChatState, presenceManager: PresenceManager? = nil, reactionManager: ReactionManager? = nil, replyManager: ReplyManager? = nil, readReceiptManager: ReadReceiptManager? = nil, typingIndicatorManager: TypingIndicatorManager? = nil) {
         self.state = state
         self.presenceManager = presenceManager
         self.reactionManager = reactionManager
         self.replyManager = replyManager
         self.readReceiptManager = readReceiptManager
+        self.typingIndicatorManager = typingIndicatorManager
     }
     
     /// 设置 PresenceManager（用于延迟注入）
@@ -84,6 +86,8 @@ final class MessageHandler {
             handleReactionRemoved(obj)
         case "read_receipt": // ✨ P1: 已读回执
             handleReadReceipt(obj)
+        case "typing": // 正在输入
+            handleTyping(obj)
         default:
             handleChatMessage(obj, state: state)
         }
@@ -280,6 +284,17 @@ final class MessageHandler {
     /// 处理已读回执通知
     private func handleReadReceipt(_ obj: [String: Any]) {
         readReceiptManager?.handleReadReceipt(obj)
+    }
+    
+    /// 处理正在输入事件
+    private func handleTyping(_ obj: [String: Any]) {
+        guard let nickname = obj["nick"] as? String,
+              let channel = obj["channel"] as? String else {
+            DebugLogger.log("⚠️ typing 消息格式错误: \(obj)", level: .warning)
+            return
+        }
+        
+        typingIndicatorManager?.handleTypingEvent(from: nickname, in: channel)
     }
 }
 

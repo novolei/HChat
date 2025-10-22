@@ -47,6 +47,7 @@ final class HackChatClient {
     let reactionManager: ReactionManager   // 表情反应管理器
     let replyManager: ReplyManager         // 消息引用/回复管理器
     let readReceiptManager: ReadReceiptManager // 已读回执管理器
+    let typingIndicatorManager: TypingIndicatorManager // 正在输入指示器
     
     // MARK: - WebSocket
     private var webSocket: URLSessionWebSocketTask?
@@ -66,8 +67,9 @@ final class HackChatClient {
         self.reactionManager = ReactionManager()
         self.replyManager = ReplyManager()
         self.readReceiptManager = ReadReceiptManager()
+        self.typingIndicatorManager = TypingIndicatorManager()
 
-        self.messageHandler = MessageHandler(state: state, presenceManager: presenceManager, reactionManager: reactionManager, readReceiptManager: readReceiptManager)
+        self.messageHandler = MessageHandler(state: state, presenceManager: presenceManager, reactionManager: reactionManager, readReceiptManager: readReceiptManager, typingIndicatorManager: typingIndicatorManager)
         self.commandHandler = CommandHandler(state: state, sendMessage: { [weak self] json in
             self?.send(json: json)
         })
@@ -79,6 +81,7 @@ final class HackChatClient {
         self.reactionManager.setDependencies(client: self, state: state)
         self.replyManager.setClient(self)
         self.readReceiptManager.setDependencies(client: self, state: state)
+        self.typingIndicatorManager.setClient(self)
     }
     
     // MARK: - 连接管理

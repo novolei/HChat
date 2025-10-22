@@ -51,6 +51,11 @@ struct ChatMessageListView: View {
         return hasher.finalize()
     }
     
+    // 正在输入的用户列表
+    private var typingUsers: [String] {
+        client.typingIndicatorManager.typingNicknames(in: client.currentChannel)
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 搜索/过滤（现代化设计）
@@ -92,6 +97,7 @@ struct ChatMessageListView: View {
             
             // 消息列表（优化性能：使用 ScrollView + LazyVStack 替代 List）
             ScrollViewReader { proxy in
+                VStack(spacing: 0) {
                 if filteredMessages.isEmpty {
                     // 空状态视图
                     EmptyChatStateView(
@@ -174,6 +180,15 @@ struct ChatMessageListView: View {
                             proxy.scrollTo("bottom_anchor", anchor: .bottom)
                         }
                     }
+                }
+                
+                // 正在输入指示器
+                if !typingUsers.isEmpty {
+                    TypingIndicatorView(typingUsers: typingUsers)
+                        .padding(.horizontal, ModernTheme.spacing4)
+                        .padding(.top, ModernTheme.spacing2)
+                        .padding(.bottom, ModernTheme.spacing1)
+                }
                 }
             }
         }
