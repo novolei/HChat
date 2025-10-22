@@ -106,6 +106,7 @@ struct ChatInputView: View {
             // 语音录制界面（使用 overlay 避免影响布局）
             VoiceRecorderView(
                 isRecording: $isRecordingVoice,
+                audioRecorder: audioRecorder,
                 onRecordingComplete: handleVoiceRecorded,
                 onCancel: handleVoiceCancel
             )
@@ -186,19 +187,41 @@ struct ChatInputView: View {
     }
     
     private func handleVoiceRecorded(_ url: URL) {
-        // TODO: 加密并上传音频文件
         DebugLogger.log("🎤 录音完成: \(url.path)", level: .info)
         
-        // 停止录音
-        if let recordingURL = audioRecorder.stopRecording() {
-            DebugLogger.log("📁 录音文件: \(recordingURL.path)", level: .info)
-            // TODO: 发送语音消息
+        // 加密并上传音频文件
+        Task {
+            do {
+                let attachment = try await uploadVoiceFile(url: url)
+                DebugLogger.log("✅ 语音文件上传成功: \(attachment.filename)", level: .info)
+                
+                // TODO: 发送语音消息到聊天
+                await MainActor.run {
+                    client.sendAttachment(attachment)
+                }
+            } catch {
+                DebugLogger.log("❌ 语音文件上传失败: \(error.localizedDescription)", level: .error)
+            }
         }
     }
     
     private func handleVoiceCancel() {
-        audioRecorder.cancelRecording()
         DebugLogger.log("❌ 录音已取消", level: .info)
+    }
+    
+    /// 上传语音文件（加密）
+    private func uploadVoiceFile(url: URL) async throws -> Attachment {
+        let uploader = Services.uploader
+        let passphrase = client.currentChannel // 使用频道名作为密码
+        
+        // 加密并上传
+        return try await uploader.encryptAndUploadFile(
+            fileURL: url,
+            filename: "voice_\(Int(Date().timeIntervalSince1970)).m4a",
+            originalContentType: "audio/m4a",
+            passphrase: passphrase,
+            objectKeyPrefix: "rooms/\(client.currentChannel)"
+        )
     }
 }
 

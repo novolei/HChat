@@ -18,6 +18,7 @@ enum RecordingState {
 /// 语音录制视图
 struct VoiceRecorderView: View {
     @Binding var isRecording: Bool
+    var audioRecorder: AudioRecorderManager
     var onRecordingComplete: (URL) -> Void
     var onCancel: () -> Void
     
@@ -62,6 +63,16 @@ struct VoiceRecorderView: View {
                     handleDragEnd(value)
                 }
         )
+        .onChange(of: isRecording) { _, newValue in
+            if newValue {
+                // 开始录音时启动监控
+                startMonitoring()
+            } else {
+                // 停止录音时清理定时器
+                timer?.invalidate()
+                timer = nil
+            }
+        }
     }
     
     // MARK: - 录音控制面板
@@ -169,15 +180,19 @@ struct VoiceRecorderView: View {
     
     // MARK: - 录音控制
     
-    private func startRecording() {
-        isRecording = true
+    /// 启动定时器监控录音状态
+    func startMonitoring() {
         recordingState = .recording
-        recordingDuration = 0
         
         // 启动定时器更新时长和波形
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            recordingDuration += 0.1
-            updateAudioLevels()
+        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [self] _ in
+            // 从 audioRecorder 获取真实数据
+            recordingDuration = audioRecorder.duration
+            
+            // 获取音频电平
+            let level = audioRecorder.getNormalizedLevel()
+            audioLevels.removeFirst()
+            audioLevels.append(level)
             
             // 最大录音时长 60 秒
             if recordingDuration >= 60 {
@@ -185,15 +200,7 @@ struct VoiceRecorderView: View {
             }
         }
         
-        HapticManager.impact(style: .medium)
-        DebugLogger.log("🎤 开始录音", level: .info)
-    }
-    
-    private func updateAudioLevels() {
-        // 模拟音频电平变化（实际应从 AVAudioRecorder 获取）
-        let newLevel = CGFloat.random(in: 0.2...1.0)
-        audioLevels.removeFirst()
-        audioLevels.append(newLevel)
+        DebugLogger.log("🎤 开始监控录音状态", level: .debug)
     }
     
     private func finishRecording() {
@@ -207,8 +214,10 @@ struct VoiceRecorderView: View {
         HapticManager.notification(type: .success)
         DebugLogger.log("✅ 录音完成，时长: \(recordingDuration)s", level: .info)
         
-        // TODO: 返回录音文件 URL
-        // onRecordingComplete(recordingURL)
+        // 停止录音并获取文件 URL
+        if let recordingURL = audioRecorder.stopRecording() {
+            onRecordingComplete(recordingURL)
+        }
     }
     
     private func cancelRecording() {
@@ -222,6 +231,8 @@ struct VoiceRecorderView: View {
         HapticManager.notification(type: .warning)
         DebugLogger.log("❌ 录音已取消", level: .info)
         
+        // 取消录音
+        audioRecorder.cancelRecording()
         onCancel()
     }
     
@@ -250,6 +261,7 @@ struct VoiceRecorderView: View {
         
         VoiceRecorderView(
             isRecording: .constant(true),
+            audioRecorder: AudioRecorderManager(),
             onRecordingComplete: { _ in },
             onCancel: {}
         )
