@@ -20,6 +20,7 @@ struct MessageRowView: View {
     var onShowReadReceipts: (() -> Void)? = nil            // ✨ P1: 显示已读回执
     
     @State private var showQuickPicker = false
+    @Environment(\.dismiss) private var dismiss  // 用于防止意外 dismiss
     
     // 是否是自己发送的消息
     private var isMyMessage: Bool {
@@ -91,10 +92,20 @@ struct MessageRowView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: HChatTheme.largeCornerRadius, style: .continuous))
                         )
                         .shadow(color: isMyMessage ? HChatTheme.mediumShadow : HChatTheme.lightShadow, radius: 4, x: 0, y: 2)
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showQuickPicker.toggle()
+                            }
+                        }
                 }
 
                 ForEach(message.attachments) { a in
                     AttachmentCard(attachment: a, client: client)
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showQuickPicker.toggle()
+                            }
+                        }
                 }
                 
                 // ✨ P1: 表情反应气泡（显示在消息下方，对齐方式跟随消息）
@@ -120,6 +131,32 @@ struct MessageRowView: View {
                         ReadReceiptIndicator(message: message, showDetails: true)
                     }
                     .buttonStyle(.plain)
+                }
+                
+                // 快捷 Reaction 选择器（类似图片中的风格）
+                if showQuickPicker {
+                    HStack(spacing: 12) {
+                        ForEach(QuickReactions.defaults.prefix(6), id: \.self) { emoji in
+                            Button {
+                                onReactionTap?(emoji)
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    showQuickPicker = false
+                                }
+                            } label: {
+                                Text(emoji)
+                                    .font(.system(size: 32))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: Color.black.opacity(0.1), radius: 8, y: 4)
+                    )
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
             
@@ -176,19 +213,10 @@ struct MessageRowView: View {
                 }
             }
         }
-        .overlay(alignment: .topTrailing) {
-            // 长按时显示快捷选择器
-            if showQuickPicker {
-                EmojiReactionPicker { emoji in
-                    onReactionTap?(emoji)
-                    showQuickPicker = false
-                }
-                .offset(x: 0, y: -50)
-                .zIndex(100)
-            }
-        }
         .onLongPressGesture {
-            showQuickPicker = true
+            // 长按触发回复功能
+            onReply?()
+            HapticManager.impact(style: .medium)
         }
     }
 }
