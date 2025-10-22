@@ -13,8 +13,8 @@ struct ReplyPreviewBar: View {
     let onCancel: () -> Void
     
     var body: some View {
-        HStack(spacing: 12) {
-            // 引用线
+        HStack(alignment: .top, spacing: 12) {
+            // 引用线（自适应高度）
             Rectangle()
                 .fill(Color.blue)
                 .frame(width: 3)
@@ -30,24 +30,30 @@ struct ReplyPreviewBar: View {
                         .foregroundColor(.blue)
                 }
                 
+                // 自适应高度的文本，最多显示 3 行
                 Text(replyTo.text.isEmpty ? "[附件消息]" : replyTo.text)
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             Button(action: onCancel) {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundColor(.secondary)
+                    .font(.system(size: 18))
             }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
-        .padding(.horizontal)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.systemGray6))
+        )
+        .padding(.horizontal, ModernTheme.spacing4)
+        .padding(.top, 4)
     }
 }
 
