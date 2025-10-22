@@ -330,48 +330,74 @@ struct VideoAttachmentView: View {
 
 struct AudioAttachmentView: View {
     let attachment: Attachment
+    @State private var isPlaying = false
+    @State private var currentTime: TimeInterval = 0
+    @State private var duration: TimeInterval = 10.0 // 默认时长
+    @State private var playbackTimer: Timer?
     
     var body: some View {
-        if let url = attachment.getUrl {
-            Link(destination: url) {
-                HStack(spacing: HChatTheme.mediumSpacing) {
-                    ZStack {
-                        Circle()
-                            .fill(HChatTheme.accent.opacity(0.1))
-                            .frame(width: 44, height: 44)
-                        
-                        Image(systemName: "waveform")
-                            .font(.title3)
-                            .foregroundColor(HChatTheme.accent)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: HChatTheme.tinySpacing) {
-                        Text(attachment.filename)
-                            .font(HChatTheme.bodyFont)
-                            .foregroundColor(HChatTheme.primaryText)
-                            .lineLimit(1)
-                        
-                        Text("音频文件")
-                            .font(HChatTheme.captionFont)
-                            .foregroundColor(HChatTheme.secondaryText)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "play.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(HChatTheme.accent)
-                }
-                .padding(HChatTheme.mediumSpacing)
-                .background(HChatTheme.secondaryBackground)
-                .clipShape(RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
-                        .stroke(HChatTheme.border, lineWidth: 1)
-                )
+        VoiceMessagePlayer(
+            duration: duration,
+            waveformData: generateWaveform(),
+            onPlay: {
+                togglePlayback()
             }
-            .buttonStyle(.plain)
+        )
+        .onDisappear {
+            stopPlayback()
         }
+    }
+    
+    private func generateWaveform() -> [CGFloat] {
+        // 基于文件名生成一致的波形
+        let seed = attachment.filename.hashValue
+        return (0..<30).map { index in
+            let hash = Double((seed + index).hashValue)
+            return CGFloat(abs(sin(hash)) * 0.6 + 0.4)
+        }
+    }
+    
+    private func togglePlayback() {
+        if isPlaying {
+            pausePlayback()
+        } else {
+            startPlayback()
+        }
+    }
+    
+    private func startPlayback() {
+        // TODO: 实现真实的音频下载、解密和播放
+        isPlaying = true
+        currentTime = 0
+        
+        // 模拟播放进度
+        playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            currentTime += 0.1
+            if currentTime >= duration {
+                stopPlayback()
+            }
+        }
+        
+        HapticManager.impact(style: .light)
+        DebugLogger.log("▶️ 开始播放语音消息", level: .info)
+    }
+    
+    private func pausePlayback() {
+        isPlaying = false
+        playbackTimer?.invalidate()
+        playbackTimer = nil
+        
+        HapticManager.impact(style: .light)
+        DebugLogger.log("⏸️ 暂停播放", level: .info)
+    }
+    
+    private func stopPlayback() {
+        isPlaying = false
+        currentTime = 0
+        playbackTimer?.invalidate()
+        playbackTimer = nil
+        
+        DebugLogger.log("⏹️ 停止播放", level: .info)
     }
 }
 
