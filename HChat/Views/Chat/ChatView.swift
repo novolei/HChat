@@ -89,8 +89,6 @@ struct ChatView: View {
                         onSend: sendOnce,
                         onAttachment: showPhotoPicker
                     )
-                    .padding(.horizontal, ModernTheme.spacing5)
-                    .padding(.bottom, ModernTheme.spacing5)
                 }
             }
             .navigationBarHidden(true)

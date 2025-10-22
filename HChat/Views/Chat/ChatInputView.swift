@@ -90,8 +90,7 @@ struct ChatInputView: View {
                 .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
             }
             .padding(.horizontal, ModernTheme.spacing5)
-            .padding(.vertical, ModernTheme.spacing4)
-            .padding(.bottom, ModernTheme.spacing6)
+            .padding(.vertical, ModernTheme.spacing3)
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
     }
