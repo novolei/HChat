@@ -100,7 +100,11 @@ struct ChatInputView: View {
     
     /// 处理输入变化，发送正在输入事件（节流：每 2 秒最多发送一次）
     private func handleTypingChange(_ text: String) {
-        guard !text.isEmpty else { return }
+        // 如果文本为空，重置 lastTypingTime（用户发送消息或清空输入框）
+        guard !text.isEmpty else {
+            lastTypingTime = nil
+            return
+        }
         
         let now = Date()
         

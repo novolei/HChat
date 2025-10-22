@@ -88,6 +88,8 @@ final class MessageHandler {
             handleReadReceipt(obj)
         case "typing": // 正在输入
             handleTyping(obj)
+        case "typing_stopped": // 停止输入
+            handleTypingStopped(obj)
         default:
             handleChatMessage(obj, state: state)
         }
@@ -295,6 +297,17 @@ final class MessageHandler {
         }
         
         typingIndicatorManager?.handleTypingEvent(from: nickname, in: channel)
+    }
+    
+    /// 处理停止输入事件
+    private func handleTypingStopped(_ obj: [String: Any]) {
+        guard let nickname = obj["nick"] as? String,
+              let channel = obj["channel"] as? String else {
+            DebugLogger.log("⚠️ typing_stopped 消息格式错误: \(obj)", level: .warning)
+            return
+        }
+        
+        typingIndicatorManager?.removeTypingUser(nickname: nickname, channel: channel)
     }
 }
 

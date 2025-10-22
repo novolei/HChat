@@ -84,6 +84,21 @@ class TypingIndicatorManager {
         typingUsers(in: channel).map { $0.nickname }
     }
     
+    /// 移除指定用户的输入状态（用户发送消息后立即移除）
+    func removeTypingUser(nickname: String, channel: String) {
+        guard var users = typingUsersByChannel[channel] else { return }
+        
+        users.removeAll { $0.id == nickname }
+        
+        if users.isEmpty {
+            typingUsersByChannel.removeValue(forKey: channel)
+        } else {
+            typingUsersByChannel[channel] = users
+        }
+        
+        DebugLogger.log("🛑 移除 \(nickname) 的输入状态", level: .debug)
+    }
+    
     /// 清理过期的输入状态
     func cleanupExpiredTypingUsers() {
         for (channel, users) in typingUsersByChannel {
