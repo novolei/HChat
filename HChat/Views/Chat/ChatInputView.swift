@@ -49,31 +49,28 @@ struct ChatInputView: View {
                 .buttonStyle(.plain)
                 
                 // 输入框
-                HStack(alignment: .bottom, spacing: HChatTheme.smallSpacing) {
-            TextField("输入消息...", text: $inputText, axis: .vertical)
-                .lineLimit(1...6)
-                .font(HChatTheme.bodyFont)
-                .focused($isInputFocused)
-                .onChange(of: inputText) { _, newValue in
-                    handleTypingChange(newValue)
-                }
-                .onSubmit {
-                    if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        onSend()
+                TextField("输入消息...", text: $inputText, axis: .vertical)
+                    .lineLimit(1...6)
+                    .font(HChatTheme.bodyFont)
+                    .focused($isInputFocused)
+                    .onChange(of: inputText) { _, newValue in
+                        handleTypingChange(newValue)
                     }
-                }
-                }
-                .padding(.horizontal, HChatTheme.mediumSpacing)
-                .padding(.vertical, HChatTheme.smallSpacing)
-                .background(
-                    RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
-                        .fill(Color.white.opacity(0.18))
-                        .blur(radius: 18)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
-                        .stroke(LinearGradient(colors: [ModernTheme.accent.opacity(isInputFocused ? 0.6 : 0.2), ModernTheme.secondaryAccent.opacity(isInputFocused ? 0.6 : 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.2)
-                )
+                    .onSubmit {
+                        if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            onSend()
+                        }
+                    }
+                    .padding(.horizontal, HChatTheme.mediumSpacing)
+                    .padding(.vertical, HChatTheme.mediumSpacing)
+                    .background(
+                        RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
+                            .stroke(LinearGradient(colors: [ModernTheme.accent.opacity(isInputFocused ? 0.6 : 0.2), ModernTheme.secondaryAccent.opacity(isInputFocused ? 0.6 : 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.2)
+                    )
                 
                 // 发送按钮
                 Button {
@@ -95,12 +92,6 @@ struct ChatInputView: View {
             }
             .padding(.horizontal, ModernTheme.spacing5)
             .padding(.vertical, ModernTheme.spacing3)
-            .background(
-                // 毛玻璃背景
-                RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -2)
-            )
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
     }
