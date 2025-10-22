@@ -48,6 +48,19 @@ struct MessageRowView: View {
     }
 
     var body: some View {
+        ZStack {
+            // 背景遮罩（用于关闭选择器）
+            if showQuickPicker {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            showQuickPicker = false
+                        }
+                    }
+                    .zIndex(0)
+            }
+            
         HStack(alignment: .top, spacing: 8) {
             // 左边占位（自己的消息）
             if isMyMessage {
@@ -217,6 +230,8 @@ struct MessageRowView: View {
             // 长按触发回复功能
             onReply?()
             HapticManager.impact(style: .medium)
+        }
+        .zIndex(1)
         }
     }
 }
