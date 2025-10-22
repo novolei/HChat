@@ -35,8 +35,20 @@ extension UploadManager {
         let fileSize = try FileManager.default.attributesOfItem(atPath: encTmp.path)[.size] as? NSNumber
         try await UploadManager.uploadFileFromDisk(putUrl: presign.putUrl, fileURL: encTmp, contentType: "application/hcss+binary", contentLength: fileSize?.intValue)
 
-        // 4) 返回“加密文件”的 Attachment（注意：展示/下载使用 getUrl）
-        return Attachment(kind: .file,
+        // 4) 返回"加密文件"的 Attachment（注意：展示/下载使用 getUrl）
+        // 根据原始 contentType 判断附件类型
+        let kind: Attachment.Kind
+        if originalContentType.hasPrefix("image/") {
+            kind = .image
+        } else if originalContentType.hasPrefix("video/") {
+            kind = .video
+        } else if originalContentType.hasPrefix("audio/") {
+            kind = .audio
+        } else {
+            kind = .file
+        }
+        
+        return Attachment(kind: kind,
                           filename: filename + ".hcss",
                           contentType: "application/hcss+binary",
                           putUrl: nil,
