@@ -134,12 +134,13 @@ struct MessageRowView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                
-                // iMessage 风格快捷操作菜单
+            }
+            .overlay(alignment: .top) {
+                // iMessage 风格快捷操作菜单（显示在消息上方）
                 if showQuickActions {
                     VStack(spacing: 8) {
                         // Emoji reactions（上方）
-                        HStack(spacing: 12) {
+                        HStack(spacing: 8) {
                             ForEach(QuickReactions.defaults.prefix(6), id: \.self) { emoji in
                                 Button {
                                     onReactionTap?(emoji)
@@ -153,13 +154,27 @@ struct MessageRowView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
+                            
+                            // "更多"按钮
+                            Button {
+                                onShowReactionPicker?()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    showQuickActions = false
+                                }
+                                HapticManager.impact(style: .light)
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(ModernTheme.tertiaryText)
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 24, style: .continuous)
                                 .fill(.ultraThinMaterial)
-                                .shadow(color: Color.black.opacity(0.1), radius: 8, y: 2)
+                                .shadow(color: Color.black.opacity(0.15), radius: 12, y: 4)
                         )
                         
                         // 回复按钮（下方）
@@ -179,15 +194,16 @@ struct MessageRowView: View {
                             .foregroundColor(ModernTheme.accent)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: 240)
                             .background(
                                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                                     .fill(.ultraThinMaterial)
-                                    .shadow(color: Color.black.opacity(0.1), radius: 8, y: 2)
+                                    .shadow(color: Color.black.opacity(0.15), radius: 12, y: 4)
                             )
                         }
                         .buttonStyle(.plain)
                     }
+                    .offset(y: -80)
                     .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -199,52 +215,6 @@ struct MessageRowView: View {
         }
         .padding(.horizontal, ModernTheme.spacing4)
         .padding(.vertical, 4)
-        .contextMenu {
-            // ✨ P1: 回复消息
-            Button {
-                onReply?()
-            } label: {
-                Label("回复", systemImage: "arrowshape.turn.up.left")
-            }
-            
-            Divider()
-            
-            // ✨ P1: 右键菜单快捷反应
-            ForEach(QuickReactions.defaults.prefix(3), id: \.self) { emoji in
-                Button {
-                    onReactionTap?(emoji)
-                } label: {
-                    Label(emoji, systemImage: "face.smiling")
-                }
-            }
-            
-            Button {
-                onShowReactionPicker?()
-            } label: {
-                Label("更多反应...", systemImage: "face.smiling")
-            }
-            
-            if message.hasReactions {
-                Divider()
-                
-                Button {
-                    onShowReactionDetail?()
-                } label: {
-                    Label("查看反应 (\(message.totalReactionCount))", systemImage: "list.bullet")
-                }
-            }
-            
-            // ✨ P1: 已读回执
-            if message.hasReadReceipts && message.sender == myNick {
-                Divider()
-                
-                Button {
-                    onShowReadReceipts?()
-                } label: {
-                    Label("查看已读 (\(message.readCount))", systemImage: "checkmark.circle")
-                }
-            }
-        }
         .onLongPressGesture {
             // 长按显示快捷操作菜单（iMessage 风格）
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
