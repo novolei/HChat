@@ -534,14 +534,6 @@ struct NewChatSheet: View {
                 .background(ModernTheme.tertiaryText.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: ModernTheme.mediumRadius))
                 .padding()
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("完成") {
-                            KeyboardHelper.hideKeyboard()
-                        }
-                    }
-                }
                 
                 Button {
                     client.sendText("/join \(channelName)")
@@ -600,14 +592,6 @@ struct ProfileSheet: View {
                     .background(ModernTheme.tertiaryText.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: ModernTheme.mediumRadius))
                     .padding()
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button("完成") {
-                                KeyboardHelper.hideKeyboard()
-                            }
-                        }
-                    }
                 
                 Button {
                     if !newNickname.isEmpty {

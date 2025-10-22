@@ -3,7 +3,7 @@
 //  HChat
 //
 //  Created by Ryan Liu on 2025/10/21.
-//  ⌨️ 键盘管理工具
+//  ⌨️ 键盘管理工具 - 自然流畅的键盘隐藏体验
 //
 
 import SwiftUI
@@ -35,7 +35,7 @@ struct HideKeyboardOnTapModifier: ViewModifier {
 }
 
 extension View {
-    /// 点击视图隐藏键盘
+    /// 点击视图隐藏键盘 - 自然流畅
     func hideKeyboardOnTap() -> some View {
         modifier(HideKeyboardOnTapModifier())
     }
@@ -44,37 +44,12 @@ extension View {
 // MARK: - 📜 滚动时隐藏键盘修饰符
 
 extension View {
-    /// 滚动时自动隐藏键盘（iOS 16+）
+    /// 滚动时自动隐藏键盘（iOS 16+自动兼容）
     func scrollDismissesKeyboardIfAvailable() -> some View {
         if #available(iOS 16.0, *) {
             return AnyView(self.scrollDismissesKeyboard(.interactively))
         } else {
             return AnyView(self)
-        }
-    }
-}
-
-// MARK: - ⌨️ 键盘工具栏
-
-struct KeyboardToolbar: ToolbarContent {
-    var body: some ToolbarContent {
-        ToolbarItemGroup(placement: .keyboard) {
-            Spacer()
-            Button {
-                KeyboardHelper.hideKeyboard()
-            } label: {
-                Image(systemName: "keyboard.chevron.compact.down")
-                    .foregroundColor(ModernTheme.accent)
-            }
-        }
-    }
-}
-
-extension View {
-    /// 添加键盘工具栏（包含隐藏按钮）
-    func keyboardToolbar() -> some View {
-        self.toolbar {
-            KeyboardToolbar()
         }
     }
 }

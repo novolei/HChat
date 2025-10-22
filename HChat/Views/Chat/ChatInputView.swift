@@ -57,17 +57,6 @@ struct ChatInputView: View {
                         onSend()
                     }
                 }
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button {
-                            KeyboardHelper.hideKeyboard()
-                        } label: {
-                            Image(systemName: "keyboard.chevron.compact.down")
-                                .foregroundColor(HChatTheme.accent)
-                        }
-                    }
-                }
                 }
                 .padding(.horizontal, HChatTheme.mediumSpacing)
                 .padding(.vertical, HChatTheme.smallSpacing)
