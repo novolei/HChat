@@ -17,7 +17,7 @@ class TypingIndicatorManager {
     private(set) var typingUsersByChannel: [String: [TypingUser]] = [:]
     
     /// 定时器，用于清理过期的输入状态
-    private var cleanupTimer: Timer?
+    nonisolated(unsafe) private var cleanupTimer: Timer?
     
     weak var client: HackChatClient?
     
@@ -47,7 +47,7 @@ class TypingIndicatorManager {
             "nick": client.myNick
         ]
         
-        client.send(message)
+        client.send(json: message)
         DebugLogger.log("📝 发送正在输入状态: \(channel)", level: .debug)
     }
     
