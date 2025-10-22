@@ -25,123 +25,139 @@ struct VoiceRecorderView: View {
     @State private var recordingDuration: TimeInterval = 0
     @State private var audioLevels: [CGFloat] = Array(repeating: 0.1, count: 30)
     @State private var timer: Timer?
+    @State private var dragOffset: CGFloat = 0
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // 录音界面背景遮罩
-                if isRecording {
-                    Color.black.opacity(0.5)
-                        .ignoresSafeArea()
-                        .transition(.opacity)
-                }
-                
+        ZStack {
+            // 半透明遮罩
+            if isRecording {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+            }
+            
+            // 录音提示面板（居中显示）
+            if isRecording {
                 VStack {
                     Spacer()
                     
-                    if isRecording {
-                        // 录音控制面板
-                        recordingPanel
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
+                    recordingPanel
+                        .offset(y: dragOffset)
+                    
+                    Spacer()
+                        .frame(height: 200) // 为底部输入区域留空间
                 }
+                .transition(.scale.combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isRecording)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: recordingState)
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: recordingState)
+        .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.75), value: dragOffset)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    handleDragChange(value)
+                }
+                .onEnded { value in
+                    handleDragEnd(value)
+                }
+        )
     }
     
     // MARK: - 录音控制面板
     
     private var recordingPanel: some View {
-        VStack(spacing: ModernTheme.spacing4) {
-            // 提示文本
-            HStack(spacing: 8) {
-                if recordingState == .willCancel {
+        VStack(spacing: ModernTheme.spacing5) {
+            // 取消提示（滑动时显示）
+            if recordingState == .willCancel {
+                HStack(spacing: 8) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.red)
-                    Text("松手取消")
-                        .foregroundColor(.red)
-                } else {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .foregroundColor(ModernTheme.accent)
-                    Text("上滑取消")
-                        .foregroundColor(ModernTheme.primaryText)
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                    Text("松手取消发送")
+                        .font(ModernTheme.body.weight(.medium))
+                        .foregroundColor(.white)
                 }
-            }
-            .font(ModernTheme.subheadline)
-            .padding(.vertical, ModernTheme.spacing2)
-            
-            // 波形可视化
-            HStack(spacing: 3) {
-                ForEach(0..<audioLevels.count, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(recordingState == .willCancel ? Color.red : ModernTheme.accent)
-                        .frame(width: 3, height: audioLevels[index] * 40)
-                        .animation(.easeInOut(duration: 0.1), value: audioLevels[index])
+                .padding(.vertical, 12)
+                .padding(.horizontal, 24)
+                .background(
+                    Capsule()
+                        .fill(Color.red)
+                )
+                .shadow(color: .red.opacity(0.3), radius: 8, y: 4)
+            } else {
+                // 录音中的界面
+                VStack(spacing: ModernTheme.spacing4) {
+                    // 波形可视化
+                    HStack(spacing: 3) {
+                        ForEach(0..<audioLevels.count, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [ModernTheme.accent, ModernTheme.secondaryAccent],
+                                        startPoint: .bottom,
+                                        endPoint: .top
+                                    )
+                                )
+                                .frame(width: 3, height: audioLevels[index] * 50)
+                                .animation(.easeInOut(duration: 0.1), value: audioLevels[index])
+                        }
+                    }
+                    .frame(height: 60)
+                    
+                    // 录音时长
+                    Text(formatDuration(recordingDuration))
+                        .font(ModernTheme.title2.monospacedDigit())
+                        .foregroundColor(.white)
+                    
+                    // 提示文本
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("上滑取消")
+                            .font(ModernTheme.caption)
+                    }
+                    .foregroundColor(.white.opacity(0.8))
                 }
+                .padding(.vertical, ModernTheme.spacing5)
+                .padding(.horizontal, ModernTheme.spacing6)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    ModernTheme.accent.opacity(0.95),
+                                    ModernTheme.secondaryAccent.opacity(0.95)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: ModernTheme.accent.opacity(0.3), radius: 20, y: 10)
+                )
             }
-            .frame(height: 50)
-            .padding(.vertical, ModernTheme.spacing3)
-            
-            // 录音时长
-            Text(formatDuration(recordingDuration))
-                .font(ModernTheme.title2.monospacedDigit())
-                .foregroundColor(recordingState == .willCancel ? .red : ModernTheme.primaryText)
-            
-            // 录音按钮
-            recordButton
         }
-        .padding(.horizontal, ModernTheme.spacing5)
-        .padding(.vertical, ModernTheme.spacing5)
-        .background(
-            RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
-                .fill(.ultraThinMaterial)
-        )
-        .padding(.horizontal, ModernTheme.spacing4)
-        .padding(.bottom, ModernTheme.spacing5)
-    }
-    
-    // MARK: - 录音按钮
-    
-    private var recordButton: some View {
-        Circle()
-            .fill(recordingState == .willCancel ? Color.red : ModernTheme.accent)
-            .frame(width: 70, height: 70)
-            .overlay(
-                Image(systemName: recordingState == .willCancel ? "xmark" : "waveform")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundColor(.white)
-            )
-            .scaleEffect(recordingState == .recording ? 1.1 : 1.0)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        handleDragChange(value)
-                    }
-                    .onEnded { value in
-                        handleDragEnd(value)
-                    }
-            )
     }
     
     // MARK: - 手势处理
     
     private func handleDragChange(_ value: DragGesture.Value) {
-        if !isRecording {
-            // 开始录音
-            startRecording()
-        }
+        // 只处理垂直方向的滑动
+        let translation = value.translation.height
         
-        // 检查是否向上滑动超过阈值
-        if value.translation.height < -50 {
+        // 向上滑动超过 80pt 时显示取消提示
+        if translation < -80 {
             recordingState = .willCancel
+            dragOffset = translation
         } else {
             recordingState = .recording
+            dragOffset = min(0, translation) // 只允许向上滑动
         }
     }
     
     private func handleDragEnd(_ value: DragGesture.Value) {
+        dragOffset = 0
+        
         if recordingState == .willCancel {
             // 取消录音
             cancelRecording()
@@ -186,6 +202,7 @@ struct VoiceRecorderView: View {
         
         isRecording = false
         recordingState = .idle
+        dragOffset = 0
         
         HapticManager.notification(type: .success)
         DebugLogger.log("✅ 录音完成，时长: \(recordingDuration)s", level: .info)
@@ -200,6 +217,7 @@ struct VoiceRecorderView: View {
         
         isRecording = false
         recordingState = .idle
+        dragOffset = 0
         
         HapticManager.notification(type: .warning)
         DebugLogger.log("❌ 录音已取消", level: .info)
@@ -218,10 +236,17 @@ struct VoiceRecorderView: View {
 
 // MARK: - 预览
 
-#Preview("录音界面") {
+#Preview("录音中") {
     ZStack {
         ModernTheme.twilightGradient
             .ignoresSafeArea()
+        
+        VStack {
+            Spacer()
+            Text("聊天消息区域")
+                .foregroundColor(.white)
+            Spacer()
+        }
         
         VoiceRecorderView(
             isRecording: .constant(true),
@@ -230,4 +255,3 @@ struct VoiceRecorderView: View {
         )
     }
 }
-
