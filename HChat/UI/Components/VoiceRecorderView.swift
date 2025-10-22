@@ -101,27 +101,29 @@ struct VoiceRecorderView: View {
             } else {
                 // 录音中的界面
                 VStack(spacing: ModernTheme.spacing4) {
-                    // 波形可视化
+                    // 波形可视化 - 使用白色和黄绿色渐变，更明显
                     HStack(spacing: 3) {
                         ForEach(0..<audioLevels.count, id: \.self) { index in
                             RoundedRectangle(cornerRadius: 2)
                                 .fill(
                                     LinearGradient(
-                                        colors: [ModernTheme.accent, ModernTheme.secondaryAccent],
+                                        colors: [Color.white, Color(red: 0.5, green: 1.0, blue: 0.5)],
                                         startPoint: .bottom,
                                         endPoint: .top
                                     )
                                 )
-                                .frame(width: 3, height: audioLevels[index] * 50)
+                                .frame(width: 4, height: audioLevels[index] * 60)
+                                .shadow(color: Color.white.opacity(0.5), radius: 2)
                                 .animation(.easeInOut(duration: 0.1), value: audioLevels[index])
                         }
                     }
-                    .frame(height: 60)
+                    .frame(height: 70)
                     
                     // 录音时长
                     Text(formatDuration(recordingDuration))
                         .font(ModernTheme.title2.monospacedDigit())
                         .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.3), radius: 2)
                     
                     // 提示文本
                     HStack(spacing: 6) {
@@ -130,23 +132,25 @@ struct VoiceRecorderView: View {
                         Text("上滑取消")
                             .font(ModernTheme.caption)
                     }
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(.white.opacity(0.9))
+                    .shadow(color: .black.opacity(0.3), radius: 2)
                 }
                 .padding(.vertical, ModernTheme.spacing5)
-                .padding(.horizontal, ModernTheme.spacing6)
+                .padding(.horizontal, 40) // 增加水平内边距，让面板更宽
+                .frame(maxWidth: 340) // 设置最大宽度
                 .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    ModernTheme.accent.opacity(0.95),
-                                    ModernTheme.secondaryAccent.opacity(0.95)
+                                    Color(red: 0.3, green: 0.4, blue: 0.9, alpha: 0.95), // 深蓝色
+                                    Color(red: 0.5, green: 0.3, blue: 0.8, alpha: 0.95)  // 紫色
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .shadow(color: ModernTheme.accent.opacity(0.3), radius: 20, y: 10)
+                        .shadow(color: Color.black.opacity(0.3), radius: 20, y: 10)
                 )
             }
         }
