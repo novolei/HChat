@@ -30,7 +30,7 @@ struct ChatMessageListView: View {
     // 缓存过滤结果以提升性能
     private var filteredMessages: [ChatMessage] {
         let channel = client.currentChannel
-        let messages = client.state.messages(in: channel)
+        let messages = client.messagesByChannel[channel] ?? []
         
         guard !searchText.isEmpty else { return messages }
         
@@ -133,19 +133,19 @@ struct ChatMessageListView: View {
                         }
                     }
                     .scrollDismissesKeyboardIfAvailable()
-                }
-                .onChange(of: filteredMessages.count) { oldCount, newCount in
-                    // 当有新消息时自动滚动到底部
-                    if shouldAutoScroll, newCount > oldCount, let lastMsg = filteredMessages.last {
-                        withAnimation {
-                            proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                    .onChange(of: filteredMessages.count) { oldCount, newCount in
+                        // 当有新消息时自动滚动到底部
+                        if shouldAutoScroll, newCount > oldCount, let lastMsg = filteredMessages.last {
+                            withAnimation {
+                                proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                            }
                         }
                     }
-                }
-                .onAppear {
-                    // 初次加载时滚动到底部
-                    if let lastMsg = filteredMessages.last {
-                        proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                    .onAppear {
+                        // 初次加载时滚动到底部
+                        if let lastMsg = filteredMessages.last {
+                            proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                        }
                     }
                 }
             }
