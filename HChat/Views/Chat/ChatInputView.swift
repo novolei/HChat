@@ -49,6 +49,9 @@ struct ChatInputView: View {
                 .padding(.horizontal, ModernTheme.spacing5)
                 .padding(.vertical, ModernTheme.spacing3)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+                .onAppear {
+                    DebugLogger.log("👀 VoiceMessagePreview 已显示", level: .info)
+                }
             } else {
                 // 正常输入区域
                 HStack(alignment: .bottom, spacing: HChatTheme.mediumSpacing) {

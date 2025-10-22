@@ -180,12 +180,20 @@ class AudioRecorderManager: NSObject {
         if let recorder = audioRecorder {
             // 获取平均功率 (-160 到 0)
             let avgPower = recorder.averagePower(forChannel: 0)
-            // 归一化到 0-1，使用更激进的缩放让波形更明显
-            let normalized = pow(10, (avgPower + 50) / 20) // +50 使静音时也有一些波动
-            return CGFloat(max(0.1, min(1.0, normalized)))
+            
+            // 使用更激进的映射，让变化更明显
+            // avgPower 通常在 -60 到 0 之间
+            let minDb: Float = -50.0  // 最小分贝
+            let maxDb: Float = 0.0    // 最大分贝
+            
+            // 线性映射到 0.2 - 1.0 范围
+            let normalized = (avgPower - minDb) / (maxDb - minDb)
+            let clamped = max(0.2, min(1.0, normalized))
+            
+            return CGFloat(clamped)
         }
         
-        return 0.1
+        return 0.2
     }
 }
 

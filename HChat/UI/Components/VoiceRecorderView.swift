@@ -102,9 +102,9 @@ struct VoiceRecorderView: View {
                 // 录音中的界面
                 VStack(spacing: ModernTheme.spacing4) {
                     // 波形可视化 - 使用白色和黄绿色渐变，更明显
-                    HStack(spacing: 3) {
+                    HStack(spacing: 2) {
                         ForEach(0..<audioLevels.count, id: \.self) { index in
-                            RoundedRectangle(cornerRadius: 2)
+                            Capsule()
                                 .fill(
                                     LinearGradient(
                                         colors: [Color.white, Color(red: 0.5, green: 1.0, blue: 0.5)],
@@ -112,9 +112,9 @@ struct VoiceRecorderView: View {
                                         endPoint: .top
                                     )
                                 )
-                                .frame(width: 4, height: audioLevels[index] * 60)
+                                .frame(width: 2.5, height: max(8, audioLevels[index] * 70))
                                 .shadow(color: Color.white.opacity(0.5), radius: 2)
-                                .animation(.easeInOut(duration: 0.1), value: audioLevels[index])
+                                .animation(.easeInOut(duration: 0.15), value: audioLevels[index])
                         }
                     }
                     .frame(height: 70)
