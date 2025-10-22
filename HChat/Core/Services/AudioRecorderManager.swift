@@ -174,7 +174,18 @@ class AudioRecorderManager: NSObject {
     
     /// 获取归一化的音量等级（0.0 - 1.0）
     func getNormalizedLevel() -> CGFloat {
-        return CGFloat(max(0.1, min(1.0, currentLevel * 2)))
+        // 主动更新音频电平
+        audioRecorder?.updateMeters()
+        
+        if let recorder = audioRecorder {
+            // 获取平均功率 (-160 到 0)
+            let avgPower = recorder.averagePower(forChannel: 0)
+            // 归一化到 0-1，使用更激进的缩放让波形更明显
+            let normalized = pow(10, (avgPower + 50) / 20) // +50 使静音时也有一些波动
+            return CGFloat(max(0.1, min(1.0, normalized)))
+        }
+        
+        return 0.1
     }
 }
 

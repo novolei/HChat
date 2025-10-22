@@ -113,15 +113,21 @@ struct VoiceMessagePreview: View {
                 onSend()
                 HapticManager.impact(style: .medium)
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [ModernTheme.accent, ModernTheme.secondaryAccent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [ModernTheme.accent, ModernTheme.secondaryAccent],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                }
             }
             .buttonStyle(.plain)
         }
