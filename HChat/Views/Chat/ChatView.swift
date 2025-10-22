@@ -74,12 +74,11 @@ struct ChatView: View {
                 
                 VStack(spacing: 0) {
                     header
-                        .padding(.horizontal, ModernTheme.spacing5)
-                        .padding(.top, ModernTheme.spacing5)
-                        .padding(.bottom, ModernTheme.spacing4)
+                        .padding(.horizontal, ModernTheme.spacing4)
+                        .padding(.top, ModernTheme.spacing2)
+                        .padding(.bottom, ModernTheme.spacing2)
                     
                     ChatMessageListView(client: client, searchText: $searchText)
-                        .padding(.horizontal, ModernTheme.spacing4)
                         .padding(.bottom, ModernTheme.spacing4)
                         .transition(.opacity)
                     

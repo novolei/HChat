@@ -74,7 +74,7 @@ struct ChatMessageListView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
             }
-            .padding(.horizontal, HChatTheme.largeSpacing)
+            .padding(.horizontal, HChatTheme.mediumSpacing)
             .padding(.vertical, HChatTheme.smallSpacing)
             .background(
                 RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
@@ -84,9 +84,9 @@ struct ChatMessageListView: View {
                 RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
                     .stroke(isSearchFocused ? HChatTheme.accent.opacity(0.3) : HChatTheme.border, lineWidth: 1)
             )
-            .padding(.horizontal, HChatTheme.largeSpacing)
-            .padding(.top, HChatTheme.mediumSpacing)
-            .padding(.bottom, HChatTheme.smallSpacing)
+            .padding(.horizontal, ModernTheme.spacing4)
+            .padding(.top, ModernTheme.spacing1)
+            .padding(.bottom, ModernTheme.spacing2)
             .animation(HChatTheme.quickAnimation, value: isSearchFocused)
             .animation(HChatTheme.quickAnimation, value: searchText.isEmpty)
             
