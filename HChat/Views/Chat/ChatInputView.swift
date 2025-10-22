@@ -16,6 +16,8 @@ struct ChatInputView: View {
     
     @FocusState private var isInputFocused: Bool
     @State private var lastTypingTime: Date?
+    @State private var isRecordingVoice = false
+    @State private var audioRecorder = AudioRecorderManager()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -72,28 +74,60 @@ struct ChatInputView: View {
                             .stroke(LinearGradient(colors: [ModernTheme.accent.opacity(isInputFocused ? 0.6 : 0.2), ModernTheme.secondaryAccent.opacity(isInputFocused ? 0.6 : 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.2)
                     )
                 
-                // 发送按钮
-                Button {
-                    onSend()
-                    HapticManager.impact(style: .medium)
-                } label: {
-                    Image(systemName: "paperplane.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(12)
-                        .background(
-                            Circle()
-                                .fill(LinearGradient(colors: inputText.isEmpty ? [ModernTheme.tertiaryText.opacity(0.4), ModernTheme.tertiaryText.opacity(0.2)] : [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        )
+                // 发送/语音按钮
+                if inputText.isEmpty {
+                    // 语音录制按钮
+                    voiceButton
+                } else {
+                    // 发送按钮
+                    Button {
+                        onSend()
+                        HapticManager.impact(style: .medium)
+                    } label: {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(12)
+                            .background(
+                                Circle()
+                                    .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
-                .disabled(inputText.isEmpty)
-                .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
             }
             .padding(.horizontal, ModernTheme.spacing5)
             .padding(.vertical, ModernTheme.spacing3)
+            
+            // 语音录制界面
+            VoiceRecorderView(
+                isRecording: $isRecordingVoice,
+                onRecordingComplete: handleVoiceRecorded,
+                onCancel: handleVoiceCancel
+            )
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
+        .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
+    }
+    
+    // MARK: - 语音录制按钮
+    
+    private var voiceButton: some View {
+        Circle()
+            .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(width: 44, height: 44)
+            .overlay(
+                Image(systemName: "waveform")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+            )
+            .gesture(
+                LongPressGesture(minimumDuration: 0.2)
+                    .onEnded { _ in
+                        startVoiceRecording()
+                    }
+            )
     }
     
     // MARK: - 正在输入处理
@@ -116,6 +150,44 @@ struct ChatInputView: View {
         // 发送正在输入事件
         client.typingIndicatorManager.sendTypingStatus(channel: client.currentChannel)
         lastTypingTime = now
+    }
+    
+    // MARK: - 语音录制处理
+    
+    private func startVoiceRecording() {
+        Task {
+            // 请求麦克风权限
+            let granted = await audioRecorder.requestPermission()
+            guard granted else {
+                DebugLogger.log("❌ 麦克风权限被拒绝", level: .warning)
+                return
+            }
+            
+            // 开始录音
+            do {
+                try audioRecorder.startRecording()
+                isRecordingVoice = true
+                HapticManager.impact(style: .medium)
+            } catch {
+                DebugLogger.log("❌ 开始录音失败: \(error.localizedDescription)", level: .error)
+            }
+        }
+    }
+    
+    private func handleVoiceRecorded(_ url: URL) {
+        // TODO: 加密并上传音频文件
+        DebugLogger.log("🎤 录音完成: \(url.path)", level: .info)
+        
+        // 停止录音
+        if let recordingURL = audioRecorder.stopRecording() {
+            DebugLogger.log("📁 录音文件: \(recordingURL.path)", level: .info)
+            // TODO: 发送语音消息
+        }
+    }
+    
+    private func handleVoiceCancel() {
+        audioRecorder.cancelRecording()
+        DebugLogger.log("❌ 录音已取消", level: .info)
     }
 }
 
