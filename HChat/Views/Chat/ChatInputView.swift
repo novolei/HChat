@@ -95,6 +95,12 @@ struct ChatInputView: View {
             }
             .padding(.horizontal, ModernTheme.spacing5)
             .padding(.vertical, ModernTheme.spacing3)
+            .background(
+                // 毛玻璃背景
+                RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -2)
+            )
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
     }
