@@ -127,6 +127,7 @@ struct MessageRowView: View {
                 Spacer(minLength: 60)
             }
         }
+        .padding(.horizontal, ModernTheme.spacing4)
         .padding(.vertical, 4)
         .contextMenu {
             // ✨ P1: 回复消息
