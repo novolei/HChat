@@ -335,7 +335,7 @@ struct AudioAttachmentView: View {
     let client: HackChatClient
     
     private var audioId: String {
-        attachment.getUrl ?? attachment.filename
+        attachment.getUrl?.absoluteString ?? attachment.filename
     }
     
     private var audioManager: AudioPlayerManager {
@@ -376,7 +376,7 @@ struct AudioAttachmentView: View {
     }
     
     private func togglePlayback() async {
-        guard let urlString = attachment.getUrl else {
+        guard let url = attachment.getUrl else {
             DebugLogger.log("❌ 无效的音频 URL", level: .error)
             return
         }
@@ -386,7 +386,7 @@ struct AudioAttachmentView: View {
         
         await audioManager.togglePlayback(
             audioId: audioId,
-            url: urlString,
+            url: url.absoluteString,
             passphrase: passphrase
         )
     }
