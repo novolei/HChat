@@ -116,20 +116,29 @@ struct ChatInputView: View {
     // MARK: - 语音录制按钮
     
     private var voiceButton: some View {
-        Circle()
-            .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .frame(width: 44, height: 44)
-            .overlay(
-                Image(systemName: "waveform")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-            )
-            .gesture(
-                LongPressGesture(minimumDuration: 0.2)
-                    .onEnded { _ in
+        Button {
+            // 占位，实际通过 simultaneousGesture 处理
+        } label: {
+            Circle()
+                .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: "waveform")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                )
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            // 使用 DragGesture 来检测按下和滑动
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    // 首次按下时开始录音
+                    if !isRecordingVoice {
                         startVoiceRecording()
                     }
-            )
+                }
+        )
     }
     
     // MARK: - 正在输入处理
