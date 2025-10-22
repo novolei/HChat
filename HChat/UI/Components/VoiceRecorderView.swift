@@ -66,9 +66,11 @@ struct VoiceRecorderView: View {
         .onChange(of: isRecording) { _, newValue in
             if newValue {
                 // 开始录音时启动监控
+                DebugLogger.log("🎬 VoiceRecorderView: 开始监控录音", level: .info)
                 startMonitoring()
             } else {
                 // 停止录音时清理定时器
+                DebugLogger.log("🛑 VoiceRecorderView: 停止监控", level: .info)
                 timer?.invalidate()
                 timer = nil
             }
@@ -184,15 +186,25 @@ struct VoiceRecorderView: View {
     func startMonitoring() {
         recordingState = .recording
         
+        DebugLogger.log("🎤 开始监控录音状态，isRecording=\(audioRecorder.isRecording)", level: .info)
+        
         // 启动定时器更新时长和波形
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [self] _ in
             // 从 audioRecorder 获取真实数据
-            recordingDuration = audioRecorder.duration
+            let newDuration = audioRecorder.duration
+            let newLevel = audioRecorder.getNormalizedLevel()
             
-            // 获取音频电平
-            let level = audioRecorder.getNormalizedLevel()
+            // 更新时长
+            recordingDuration = newDuration
+            
+            // 更新音频电平
             audioLevels.removeFirst()
-            audioLevels.append(level)
+            audioLevels.append(newLevel)
+            
+            // 偶尔输出日志
+            if Int(newDuration * 10) % 10 == 0 {
+                DebugLogger.log("📊 录音中: \(newDuration)s, level=\(newLevel)", level: .debug)
+            }
             
             // 最大录音时长 60 秒
             if recordingDuration >= 60 {
@@ -200,7 +212,7 @@ struct VoiceRecorderView: View {
             }
         }
         
-        DebugLogger.log("🎤 开始监控录音状态", level: .debug)
+        DebugLogger.log("✅ 定时器已启动", level: .info)
     }
     
     private func finishRecording() {

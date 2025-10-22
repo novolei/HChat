@@ -121,6 +121,7 @@ struct ChatInputView: View {
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
         .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
+        .animation(HChatTheme.standardAnimation, value: voicePreview != nil)
         .overlay(
             // 语音录制界面（使用 overlay 避免影响布局）
             VoiceRecorderView(
@@ -210,12 +211,15 @@ struct ChatInputView: View {
         
         // 获取录音时长
         let duration = audioRecorder.duration
+        DebugLogger.log("⏱️ 录音时长: \(duration)s", level: .info)
         
         // 获取波形数据（从 AudioRecorderManager 的历史记录）
         let waveform = generateWaveformData(duration: duration)
+        DebugLogger.log("📊 波形数据: \(waveform.count) 个采样点", level: .info)
         
         // 显示预览
         voicePreview = (url: url, duration: duration, waveform: waveform)
+        DebugLogger.log("✅ 语音预览已设置", level: .info)
     }
     
     private func sendVoiceMessage() {
