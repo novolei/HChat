@@ -124,8 +124,8 @@ class AudioPlayerManager: NSObject {
             throw AudioPlayerError.invalidURL
         }
         
-        // 检查缓存
-        let cacheFileName = audioId.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
+        // 检查缓存（使用 audioId 的 hash 作为文件名，避免 URL 太长）
+        let cacheFileName = "audio_\(abs(audioId.hashValue))"
         let cachedURL = cacheDirectory.appendingPathComponent(cacheFileName + ".m4a")
         
         if FileManager.default.fileExists(atPath: cachedURL.path) {
