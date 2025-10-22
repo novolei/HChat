@@ -41,6 +41,16 @@ struct ChatMessageListView: View {
         }
     }
     
+    // 监听最后一条消息的 reaction 和已读回执变化
+    private var lastMessageHash: Int {
+        guard let lastMsg = filteredMessages.last else { return 0 }
+        var hasher = Hasher()
+        hasher.combine(lastMsg.id)
+        hasher.combine(lastMsg.reactions.count)
+        hasher.combine(lastMsg.readReceipts.count)
+        return hasher.finalize()
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 搜索/过滤（现代化设计）
@@ -130,21 +140,38 @@ struct ChatMessageListView: View {
                                     }
                                 }
                             }
+                            
+                            // ✨ 底部锚点，确保滚动时完整显示最后一条消息（包括 reaction 和已读回执）
+                            Color.clear
+                                .frame(height: 1)
+                                .id("bottom_anchor")
                         }
                     }
                     .scrollDismissesKeyboardIfAvailable()
                     .onChange(of: filteredMessages.count) { oldCount, newCount in
-                        // 当有新消息时自动滚动到底部
-                        if shouldAutoScroll, newCount > oldCount, let lastMsg = filteredMessages.last {
-                            withAnimation {
-                                proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                        // 当有新消息时自动滚动到底部，使用延迟确保 reaction 和已读回执已渲染
+                        if shouldAutoScroll, newCount > oldCount {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    proxy.scrollTo("bottom_anchor", anchor: .bottom)
+                                }
+                            }
+                        }
+                    }
+                    .onChange(of: lastMessageHash) { _, _ in
+                        // 当最后一条消息的 reaction 或已读回执更新时，确保完整显示
+                        if shouldAutoScroll {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    proxy.scrollTo("bottom_anchor", anchor: .bottom)
+                                }
                             }
                         }
                     }
                     .onAppear {
                         // 初次加载时滚动到底部
-                        if let lastMsg = filteredMessages.last {
-                            proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            proxy.scrollTo("bottom_anchor", anchor: .bottom)
                         }
                     }
                 }
