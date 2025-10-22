@@ -26,19 +26,33 @@ class AudioRecorderManager: NSObject {
     
     override init() {
         super.init()
-        setupAudioSession()
+        // 不在初始化时配置音频会话，避免锁屏时报错
+        // 音频会话将在 startRecording() 时按需配置
     }
     
     // MARK: - Audio Session Setup
     
-    private func setupAudioSession() {
+    /// 配置并激活音频会话（仅在需要时调用）
+    private func setupAudioSession() throws {
         let audioSession = AVAudioSession.sharedInstance()
         do {
             try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
             try audioSession.setActive(true)
-            DebugLogger.log("✅ 音频会话配置成功", level: .info)
+            DebugLogger.log("✅ 音频会话已激活", level: .info)
         } catch {
-            DebugLogger.log("❌ 音频会话配置失败: \(error.localizedDescription)", level: .error)
+            DebugLogger.log("❌ 音频会话激活失败: \(error.localizedDescription)", level: .error)
+            throw AudioRecorderError.audioSessionFailed
+        }
+    }
+    
+    /// 停用音频会话（录音结束后）
+    private func deactivateAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+            DebugLogger.log("✅ 音频会话已停用", level: .debug)
+        } catch {
+            DebugLogger.log("⚠️ 音频会话停用失败: \(error.localizedDescription)", level: .warning)
         }
     }
     
@@ -55,6 +69,9 @@ class AudioRecorderManager: NSObject {
     
     /// 开始录音
     func startRecording() throws {
+        // 激活音频会话
+        try setupAudioSession()
+        
         // 生成临时文件 URL
         let tempDir = FileManager.default.temporaryDirectory
         let filename = "voice_\(UUID().uuidString).m4a"
@@ -80,6 +97,7 @@ class AudioRecorderManager: NSObject {
         
         // 开始录音
         guard audioRecorder?.record() == true else {
+            deactivateAudioSession()
             throw AudioRecorderError.recordingFailed
         }
         
@@ -107,6 +125,9 @@ class AudioRecorderManager: NSObject {
         isRecording = false
         currentLevel = 0
         
+        // 停用音频会话
+        deactivateAudioSession()
+        
         DebugLogger.log("⏹️ 停止录音，时长: \(duration)s", level: .info)
         
         return recordingURL
@@ -130,6 +151,9 @@ class AudioRecorderManager: NSObject {
         }
         
         recordingURL = nil
+        
+        // 停用音频会话
+        deactivateAudioSession()
         
         DebugLogger.log("❌ 取消录音", level: .info)
     }
@@ -182,6 +206,7 @@ enum AudioRecorderError: Error {
     case invalidURL
     case recordingFailed
     case permissionDenied
+    case audioSessionFailed
     
     var localizedDescription: String {
         switch self {
@@ -191,6 +216,8 @@ enum AudioRecorderError: Error {
             return "录音失败"
         case .permissionDenied:
             return "未授权麦克风权限"
+        case .audioSessionFailed:
+            return "音频会话配置失败"
         }
     }
 }

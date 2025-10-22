@@ -505,10 +505,8 @@ struct ProfileSheet: View {
                     .background(ModernTheme.tertiaryText.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: ModernTheme.mediumRadius))
                     .padding()
-<<<<<<< HEAD
-=======
+
                     .interactiveDismissKeyboard()
->>>>>>> 133d3f4 (feat: 重构 Moments Hub 下拉切换与导航系统)
                 
                 Button {
                     if !newNickname.isEmpty {
