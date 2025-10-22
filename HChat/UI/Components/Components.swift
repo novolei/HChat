@@ -351,11 +351,18 @@ struct AudioAttachmentView: View {
     }
     
     private var duration: TimeInterval {
-        audioManager.duration > 0 ? audioManager.duration : 10.0
+        // 如果是当前播放的音频，使用 audioManager 的时长
+        if audioManager.currentPlayingId == audioId && audioManager.duration > 0 {
+            return audioManager.duration
+        }
+        // 否则尝试从本地缓存获取时长，如果没有则返回默认值
+        return getAudioDuration() ?? 0.0
     }
     
     var body: some View {
         VoiceMessagePlayer(
+            isPlaying: isPlaying,
+            currentTime: currentTime,
             duration: duration,
             waveformData: generateWaveform(),
             onPlay: {
@@ -364,6 +371,26 @@ struct AudioAttachmentView: View {
                 }
             }
         )
+    }
+    
+    /// 尝试从缓存获取音频时长
+    private func getAudioDuration() -> TimeInterval? {
+        let cacheFileName = "audio_\(abs(audioId.hashValue))"
+        let cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("AudioCache", isDirectory: true)
+        let cachedURL = cacheDirectory.appendingPathComponent(cacheFileName + ".m4a")
+        
+        guard FileManager.default.fileExists(atPath: cachedURL.path) else {
+            return nil
+        }
+        
+        // 使用 AVAudioPlayer 获取时长
+        do {
+            let player = try AVAudioPlayer(contentsOf: cachedURL)
+            return player.duration
+        } catch {
+            return nil
+        }
     }
     
     private func generateWaveform() -> [CGFloat] {

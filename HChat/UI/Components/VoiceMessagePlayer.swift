@@ -10,18 +10,16 @@ import AVFoundation
 
 /// 语音消息播放器（用于消息气泡中）
 struct VoiceMessagePlayer: View {
-    let duration: TimeInterval
-    let waveformData: [CGFloat] // 波形数据
+    let isPlaying: Bool          // 播放状态（从外部传入）
+    let currentTime: TimeInterval // 当前播放时间（从外部传入）
+    let duration: TimeInterval    // 总时长（从外部传入）
+    let waveformData: [CGFloat]   // 波形数据
     let onPlay: () -> Void
-    
-    @State private var isPlaying = false
-    @State private var currentTime: TimeInterval = 0
     
     var body: some View {
         HStack(spacing: 12) {
             // 播放按钮
             Button {
-                isPlaying.toggle()
                 onPlay()
                 HapticManager.impact(style: .light)
             } label: {
@@ -322,6 +320,8 @@ struct VoiceMessagePreview: View {
         VStack(spacing: 20) {
             // 消息气泡中的播放器
             VoiceMessagePlayer(
+                isPlaying: false,
+                currentTime: 0,
                 duration: 23,
                 waveformData: (0..<30).map { _ in CGFloat.random(in: 0.2...1.0) },
                 onPlay: {}
