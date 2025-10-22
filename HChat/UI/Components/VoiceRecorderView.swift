@@ -143,8 +143,8 @@ struct VoiceRecorderView: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color(red: 0.3, green: 0.4, blue: 0.9, alpha: 0.95), // 深蓝色
-                                    Color(red: 0.5, green: 0.3, blue: 0.8, alpha: 0.95)  // 紫色
+                                    Color(red: 0.3, green: 0.4, blue: 0.9).opacity(0.95), // 深蓝色
+                                    Color(red: 0.5, green: 0.3, blue: 0.8).opacity(0.95)  // 紫色
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
