@@ -29,10 +29,6 @@ struct ChatInputView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             
-            // 分隔线
-            Divider()
-                .background(HChatTheme.separator)
-            
             // 输入区域
             HStack(alignment: .bottom, spacing: HChatTheme.mediumSpacing) {
                 // 附件按钮
@@ -40,9 +36,14 @@ struct ChatInputView: View {
                     onAttachment()
                     HapticManager.impact(style: .light)
                 } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(HChatTheme.accent)
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
                 }
                 .buttonStyle(.plain)
                 
@@ -61,12 +62,13 @@ struct ChatInputView: View {
                 .padding(.horizontal, HChatTheme.mediumSpacing)
                 .padding(.vertical, HChatTheme.smallSpacing)
                 .background(
-                    RoundedRectangle(cornerRadius: HChatTheme.largeCornerRadius, style: .continuous)
-                        .fill(HChatTheme.tertiaryBackground)
+                    RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
+                        .fill(Color.white.opacity(0.18))
+                        .blur(radius: 18)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: HChatTheme.largeCornerRadius, style: .continuous)
-                        .stroke(isInputFocused ? HChatTheme.accent.opacity(0.3) : HChatTheme.border, lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
+                        .stroke(LinearGradient(colors: [ModernTheme.accent.opacity(isInputFocused ? 0.6 : 0.2), ModernTheme.secondaryAccent.opacity(isInputFocused ? 0.6 : 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.2)
                 )
                 
                 // 发送按钮
@@ -74,19 +76,21 @@ struct ChatInputView: View {
                     onSend()
                     HapticManager.impact(style: .medium)
                 } label: {
-                    Image(systemName: inputText.isEmpty ? "arrow.up.circle" : "arrow.up.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(
-                            inputText.isEmpty ? HChatTheme.tertiaryText : HChatTheme.accent
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(LinearGradient(colors: inputText.isEmpty ? [ModernTheme.tertiaryText.opacity(0.4), ModernTheme.tertiaryText.opacity(0.2)] : [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
                         )
                 }
                 .buttonStyle(.plain)
                 .disabled(inputText.isEmpty)
                 .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
             }
-            .padding(.horizontal, HChatTheme.largeSpacing)
-            .padding(.vertical, HChatTheme.mediumSpacing)
-            .background(HChatTheme.background)
+            .padding(.horizontal, ModernTheme.spacing5)
+            .padding(.vertical, ModernTheme.spacing4)
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
     }

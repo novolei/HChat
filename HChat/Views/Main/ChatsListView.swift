@@ -12,153 +12,65 @@ struct ChatsListView: View {
     var client: HackChatClient
     
     @State private var searchText = ""
-    @State private var showNewChat = false
-    @State private var showProfile = false
+    
+    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     
     var body: some View {
         NavigationStack {
             ZStack {
-                // 背景渐变
                 ModernTheme.backgroundGradient
                     .ignoresSafeArea()
+                    .interactiveDismissKeyboard()
                 
-                ScrollView {
-                    VStack(spacing: ModernTheme.spacing5) {
-                        // 在线用户横向滚动
-                        OnlineUsersScrollView(client: client)
-                        
-                        // 搜索框
-                        ModernSearchBar(text: $searchText)
-                            .padding(.horizontal, ModernTheme.spacing4)
-                        
-                        // Pinned Chats（置顶聊天）
-                        if !pinnedChats.isEmpty {
-                            VStack(alignment: .leading, spacing: ModernTheme.spacing3) {
-                                SectionHeader(
-                                    icon: "pin.fill",
-                                    title: "置顶聊天",
-                                    iconColor: ModernTheme.warning
-                                )
-                                .padding(.horizontal, ModernTheme.spacing4)
-                                
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: ModernTheme.spacing3) {
-                                        ForEach(pinnedChats) { chat in
-                                            PinnedChatCard(chat: chat) {
-                                                selectChat(chat)
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal, ModernTheme.spacing4)
-                                }
-                            }
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: ModernTheme.spacing6) {
+                        header
+                        chatTiles
+                    }
+                    .padding(.top, ModernTheme.spacing6)
+                    .padding(.horizontal, ModernTheme.spacing5)
+                    .padding(.bottom, ModernTheme.spacing6)
+                }
+            }
+            .navigationTitle("记忆流")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+    
+    private var header: some View {
+        VStack(alignment: .leading, spacing: ModernTheme.spacing3) {
+            Text("最近聊天")
+                .font(ModernTheme.title2)
+                .foregroundColor(ModernTheme.primaryText)
+            
+            LazyVStack(spacing: ModernTheme.spacing3) {
+                ForEach(ChatPreview.sampleChats) { preview in
+                    ChatPreviewRow(preview: preview) {
+                        client.sendText("/join \(preview.channel)")
+                        HapticManager.selection()
+                    }
+                }
+            }
+        }
+    }
+    
+    private var chatTiles: some View {
+        VStack(alignment: .leading, spacing: ModernTheme.spacing3) {
+            Text("收藏联系人")
+                .font(ModernTheme.title2)
+                .foregroundColor(ModernTheme.primaryText)
+            
+            LazyVGrid(columns: columns, spacing: ModernTheme.spacing4) {
+                ForEach(FavoriteContact.sampleContacts) { contact in
+                    VStack(spacing: ModernTheme.spacing2) {
+                        FavoriteContactRow(contact: contact) {
+                            client.sendText("/join pm-\(contact.name)")
+                            HapticManager.selection()
                         }
-                        
-                        // All Chats（所有聊天）
-                        VStack(alignment: .leading, spacing: ModernTheme.spacing3) {
-                            SectionHeader(
-                                icon: "ellipsis.message.fill",
-                                title: "所有聊天",
-                                iconColor: ModernTheme.accent
-                            )
-                            .padding(.horizontal, ModernTheme.spacing4)
-                            
-                            VStack(spacing: ModernTheme.spacing2) {
-                                ForEach(filteredChats) { chat in
-                                    ChatRowCard(chat: chat, client: client) {
-                                        selectChat(chat)
-                                    }
-                                    .padding(.horizontal, ModernTheme.spacing4)
-                                }
-                            }
-                        }
-                        
-                        Spacer(minLength: 60)
-                    }
-                    .padding(.top, ModernTheme.spacing3)
-                }
-                .scrollDismissesKeyboardIfAvailable() // 滚动时隐藏键盘
-            }
-            .hideKeyboardOnTap() // 点击背景隐藏键盘
-            .navigationTitle("消息")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showNewChat = true
-                        HapticManager.impact(style: .light)
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.title3)
-                            .foregroundColor(ModernTheme.accent)
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showProfile = true
-                        HapticManager.impact(style: .light)
-                    } label: {
-                        Circle()
-                            .fill(ModernTheme.accent.opacity(0.2))
-                            .frame(width: 36, height: 36)
-                            .overlay(
-                                Text(client.myNick.prefix(1).uppercased())
-                                    .font(ModernTheme.bodyBold)
-                                    .foregroundColor(ModernTheme.accent)
-                            )
                     }
                 }
             }
-            .sheet(isPresented: $showNewChat) {
-                NewChatSheet(client: client)
-            }
-            .sheet(isPresented: $showProfile) {
-                ProfileSheet(client: client)
-            }
         }
-    }
-    
-    // MARK: - 数据处理
-    
-    private var allChats: [ChatItem] {
-        // 合并 Channels 和 DMs
-        var items: [ChatItem] = []
-        
-        // 添加所有频道
-        for (channel, messages) in client.state.messagesByChannel {
-            let lastMessage = messages.last
-            items.append(ChatItem(
-                id: channel,
-                name: channel,
-                type: channel.hasPrefix("pm-") ? .dm : .channel,
-                lastMessage: lastMessage?.text ?? "",
-                lastMessageTime: lastMessage?.timestamp ?? Date(),
-                unreadCount: 0, // TODO: 实现未读计数
-                isOnline: true,
-                isPinned: false
-            ))
-        }
-        
-        return items.sorted { $0.lastMessageTime > $1.lastMessageTime }
-    }
-    
-    private var pinnedChats: [ChatItem] {
-        allChats.filter { $0.isPinned }
-    }
-    
-    private var filteredChats: [ChatItem] {
-        if searchText.isEmpty {
-            return allChats.filter { !$0.isPinned }
-        }
-        return allChats.filter {
-            !$0.isPinned && $0.name.localizedCaseInsensitiveContains(searchText)
-        }
-    }
-    
-    private func selectChat(_ chat: ChatItem) {
-        client.sendText("/join \(chat.name)")
-        HapticManager.selection()
     }
 }
 
@@ -534,6 +446,7 @@ struct NewChatSheet: View {
                 .background(ModernTheme.tertiaryText.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: ModernTheme.mediumRadius))
                 .padding()
+                .interactiveDismissKeyboard()
                 
                 Button {
                     client.sendText("/join \(channelName)")
@@ -592,6 +505,10 @@ struct ProfileSheet: View {
                     .background(ModernTheme.tertiaryText.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: ModernTheme.mediumRadius))
                     .padding()
+<<<<<<< HEAD
+=======
+                    .interactiveDismissKeyboard()
+>>>>>>> 133d3f4 (feat: 重构 Moments Hub 下拉切换与导航系统)
                 
                 Button {
                     if !newNickname.isEmpty {

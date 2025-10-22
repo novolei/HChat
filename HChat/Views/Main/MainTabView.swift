@@ -11,38 +11,46 @@ import SwiftUI
 struct MainTabView: View {
     var client: HackChatClient
     @State private var selectedTab = 0
+    @State private var showChatView = false
+    @State private var selectedChannel: String?
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // 1️⃣ 聊天列表（Channels + DMs）
-            ChatsListView(client: client)
-                .tabItem {
-                    Label("聊天", systemImage: selectedTab == 0 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
-                }
-                .tag(0)
-            
-            // 2️⃣ 当前聊天窗口
-            ChatView(client: client)
-                .tabItem {
-                    Label("消息", systemImage: selectedTab == 1 ? "message.fill" : "message")
-                }
-                .tag(1)
-            
-            // 3️⃣ Explorer（探索）
-            ExplorerView(client: client)
-                .tabItem {
-                    Label("探索", systemImage: selectedTab == 2 ? "safari.fill" : "safari")
-                }
-                .tag(2)
-            
-            // 4️⃣ Social（社交）
-            SocialView(client: client)
-                .tabItem {
-                    Label("社交", systemImage: selectedTab == 3 ? "person.2.fill" : "person.2")
-                }
-                .tag(3)
+        NavigationStack {
+            TabView(selection: $selectedTab) {
+                // 1️⃣ Moments Hub（记忆流）
+                MomentsHomeView(client: client)
+                    .tabItem {
+                        Label("记忆", systemImage: selectedTab == 0 ? "sparkles.rectangle.fill" : "sparkles.rectangle")
+                    }
+                    .tag(0)
+                
+                // 2️⃣ Explorer（探索）
+                ExplorerView(client: client)
+                    .tabItem {
+                        Label("探索", systemImage: selectedTab == 1 ? "safari.fill" : "safari")
+                    }
+                    .tag(1)
+                
+                // 3️⃣ Personalization（私感）
+                PersonalizationView(client: client)
+                    .tabItem {
+                        Label("私感", systemImage: selectedTab == 2 ? "slider.horizontal.3" : "slider.horizontal.3")
+                    }
+                    .tag(2)
+            }
+            .tint(ModernTheme.accent)
+            .navigationDestination(isPresented: $showChatView) {
+                ChatView(client: client)
+                    .navigationBarBackButtonHidden(false)
+            }
         }
-        .tint(ModernTheme.accent)
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NavigateToChatView"))) { notification in
+            if let channel = notification.object as? String {
+                selectedChannel = channel
+                client.sendText("/join \(channel)")
+                showChatView = true
+            }
+        }
     }
 }
 

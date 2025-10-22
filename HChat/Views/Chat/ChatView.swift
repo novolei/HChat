@@ -7,9 +7,50 @@
 //
 
 import SwiftUI
+import Combine
+import Observation
+
+@Observable
+final class ChatBackgroundModel {
+    private let storageKey = "chatBackgroundStyle"
+    var style: ChatBackgroundStyle {
+        didSet { UserDefaults.standard.set(style.rawValue, forKey: storageKey) }
+    }
+    
+    init() {
+        let raw = UserDefaults.standard.string(forKey: storageKey) ?? ChatBackgroundStyle.dawn.rawValue
+        self.style = ChatBackgroundStyle(rawValue: raw) ?? .dawn
+    }
+}
+
+enum ChatBackgroundStyle: String, CaseIterable, Identifiable {
+    case dawn, dusk, twilight, meadow
+    
+    var id: String { rawValue }
+    
+    var title: String {
+        switch self {
+        case .dawn: return "晨曦渐层"
+        case .dusk: return "黄昏粉紫"
+        case .twilight: return "星空夜色"
+        case .meadow: return "萤光草地"
+        }
+    }
+    
+    var gradient: LinearGradient {
+        switch self {
+        case .dawn: return ModernTheme.dawnGradient
+        case .dusk: return ModernTheme.duskGradient
+        case .twilight: return ModernTheme.twilightGradient
+        case .meadow: return ModernTheme.meadowGradient
+        }
+    }
+}
 
 struct ChatView: View {
     var client: HackChatClient
+    var onBack: (() -> Void)? = nil
+    @State private var backgroundModel = ChatBackgroundModel()
     @State var callManager = CallManager()
     
     @State private var inputText: String = ""
@@ -19,46 +60,41 @@ struct ChatView: View {
     @State private var nicknameInput: String = ""
     @State private var showStatusPicker = false
     @State private var showOnlineUsers = false
+    @State private var wallpaperToast: ToastMessage? = nil
     
     let uploader = Services.uploader
     
     var body: some View {
         NavigationStack {
             ZStack {
-                // 聊天背景
-                HChatTheme.chatBackground
+                backgroundModel.style.gradient
                     .ignoresSafeArea()
-                    .hideKeyboardOnTap() // 点击背景隐藏键盘
+                Color.black.opacity(0.05)
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // 消息列表
-                    ChatMessageListView(client: client, searchText: $searchText)
+                    header
+                        .padding(.horizontal, ModernTheme.spacing5)
+                        .padding(.top, ModernTheme.spacing5)
+                        .padding(.bottom, ModernTheme.spacing4)
                     
-                    // 输入框
+                    ChatMessageListView(client: client, searchText: $searchText)
+                        .padding(.horizontal, ModernTheme.spacing4)
+                        .padding(.bottom, ModernTheme.spacing4)
+                        .transition(.opacity)
+                    
                     ChatInputView(
                         client: client,
                         inputText: $inputText,
                         onSend: sendOnce,
                         onAttachment: showPhotoPicker
                     )
+                    .padding(.horizontal, ModernTheme.spacing5)
+                    .padding(.bottom, ModernTheme.spacing5)
                 }
             }
-            .navigationTitle("#\(client.currentChannel)")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(HChatTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ChatToolbar(
-                    client: client,
-                    showNicknamePrompt: $showNicknamePrompt,
-                    nicknameInput: $nicknameInput,
-                    showCallSheet: $showCallSheet,
-                    showStatusPicker: $showStatusPicker,
-                    showOnlineUsers: $showOnlineUsers,
-                    onCreateChannel: createChannelPrompt,
-                    onStartPrivateChat: startPrivateChatPrompt
-                )
-            }
+            .navigationBarHidden(true)
+            .toast($wallpaperToast)
             .sheet(isPresented: $showCallSheet) {
                 #if canImport(LiveKit)
                 CallView(roomName: client.currentChannel, identity: client.myNick)
@@ -96,8 +132,6 @@ struct ChatView: View {
             }
             .onAppear {
                 NotificationManager.shared.configure()
-                
-                // 首次启动时提示设置昵称
                 if client.shouldShowNicknamePrompt {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         showNicknamePrompt = true
@@ -107,24 +141,97 @@ struct ChatView: View {
         }
     }
     
-    // MARK: - 私有方法
+    private var header: some View {
+        HStack(alignment: .center, spacing: ModernTheme.spacing4) {
+            Button {
+                onBack?()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(ModernTheme.primaryText)
+                    .padding(10)
+                    .background(
+                        Circle().fill(Color.white.opacity(0.25))
+                            .blur(radius: 10)
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.6), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("#\(client.currentChannel)")
+                    .font(ModernTheme.title3)
+                    .foregroundColor(ModernTheme.primaryText)
+                Text("共有 \(client.onlineCountByRoom[client.currentChannel] ?? 0) 人在线")
+                    .font(ModernTheme.caption)
+                    .foregroundColor(ModernTheme.secondaryText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Menu {
+                Section("背景主题") {
+                    ForEach(ChatBackgroundStyle.allCases) { style in
+                        Button {
+                            if backgroundModel.style != style {
+                                backgroundModel.style = style
+                                wallpaperToast = ToastMessage(text: "聊天背景已更新", icon: "photo.on.rectangle")
+                            }
+                        } label: {
+                            Label(style.title, systemImage: backgroundModel.style == style ? "checkmark" : "")
+                        }
+                    }
+                }
+                Section("功能") {
+                    Button {
+                        nicknameInput = client.myNick
+                        showNicknamePrompt = true
+                    } label: {
+                        Label("修改昵称", systemImage: "person.circle")
+                    }
+                    Button {
+                        showStatusPicker = true
+                    } label: {
+                        Label("设置状态", systemImage: "figure.wave")
+                    }
+                    Button {
+                        showOnlineUsers = true
+                    } label: {
+                        Label("在线用户", systemImage: "person.2")
+                    }
+                    Button {
+                        showCallSheet = true
+                    } label: {
+                        Label("发起语音通话", systemImage: "phone.arrow.up.right")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(ModernTheme.primaryText)
+                    .padding(10)
+                    .background(Circle().fill(Color.white.opacity(0.25)).blur(radius: 10))
+                    .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 1))
+            }
+        }
+        .padding(.vertical, ModernTheme.spacing2)
+        .glassSurface(cornerRadius: ModernTheme.extraLargeRadius, opacity: 0.45)
+    }
     
     private func sendOnce() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        
-        // ✨ P1: 如果正在回复，使用 ReplyManager 发送
         if client.replyManager.replyingTo != nil {
             client.replyManager.sendReply(text: text)
         } else {
             client.sendText(text)
         }
-        
         inputText = ""
     }
     
     private func showPhotoPicker() {
-        // 从剪贴板粘图（可替换为系统 PhotosPicker）
         if let img = UIPasteboard.general.image, let data = img.pngData() {
             Task {
                 do {
@@ -136,14 +243,5 @@ struct ChatView: View {
             }
         }
     }
-    
-    private func createChannelPrompt() {
-        let name = "room-\(Int.random(in: 100...999))"
-        client.sendText("/join \(name)")
-    }
-    
-    private func startPrivateChatPrompt() {
-        let pm = "pm-\(Int.random(in: 1000...9999))"
-        client.sendText("/join \(pm)")
-    }
 }
+

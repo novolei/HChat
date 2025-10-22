@@ -135,6 +135,7 @@ struct ChatMessageListView: View {
                 }
             }
         }
+        .interactiveDismissKeyboard()
         .toast($toastMessage)
         .sheet(isPresented: $showFullPicker) {
             if let message = selectedMessage {

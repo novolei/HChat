@@ -11,6 +11,15 @@ import SwiftUI
 // MARK: - 🎨 现代化主题系统
 
 enum ModernTheme {
+    // MARK: - 💖 情绪色板
+    struct EmotionPalette {
+        static let joy = Color(hex: "FF8FAB")
+        static let calm = Color(hex: "8EC5FC")
+        static let passion = Color(hex: "FF7582")
+        static let nostalgia = Color(hex: "C3AED6")
+        static let gratitude = Color(hex: "F5E960")
+        static let serenity = Color(hex: "9BE7C4")
+    }
     
     // MARK: - 🌈 配色方案（柔和、温暖）
     
@@ -19,6 +28,12 @@ enum ModernTheme {
     
     /// 次级背景 - 更浅的米色
     static let secondaryBackground = Color(hex: "FDFCFA")
+    
+    /// 玻璃态背景 - 带有淡淡的白色和透明度
+    static let glassBackground = Color.white.opacity(0.35)
+    
+    /// 胶囊背景 - 柔和的白 + 高光
+    static let capsuleBackground = Color.white.opacity(0.55)
     
     /// 卡片背景 - 纯白
     static let cardBackground = Color.white
@@ -48,8 +63,8 @@ enum ModernTheme {
     
     // MARK: - 🎯 强调色和状态色
     
-    /// 主强调色 - 柔和的蓝色
-    static let accent = Color(hex: "6B9BD1")
+    /// 主强调色 - 柔和的粉紫
+    static let accent = Color(hex: "D36AD6")
     
     /// 次级强调色 - 柔和的紫色
     static let secondaryAccent = Color(hex: "9B8CD1")
@@ -108,11 +123,12 @@ enum ModernTheme {
     static var backgroundGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(hex: "FDFCFA"),
+                Color(hex: "FFF5F7"),
+                Color(hex: "FDF6FF"),
                 Color(hex: "F5F3F0")
             ],
-            startPoint: .top,
-            endPoint: .bottom
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
         )
     }
     
@@ -120,8 +136,68 @@ enum ModernTheme {
     static var cardGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color.white,
-                Color(hex: "FDFCFA")
+                Color.white.opacity(0.9),
+                Color.white.opacity(0.75)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// 黎明渐变 - 柔和粉橙
+    static var dawnGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(hex: "FFDEE9"),
+                Color(hex: "B5FFFC")
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// 黄昏渐变 - 粉紫暮色
+    static var duskGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(hex: "F7CE68"),
+                Color(hex: "9D50BB")
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// 星空渐变 - 深紫与靛蓝
+    static var twilightGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(hex: "42275a"),
+                Color(hex: "734b6d")
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+    
+    /// 温暖的深色渐变（用于 Moments 记忆流）
+    static var momentsMemoriesGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(hex: "5E3AFF"),
+                Color(hex: "D833A6")
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    /// 护眼的淡绿渐变
+    static var meadowGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(hex: "E6F7D7"),
+                Color(hex: "B4EDC7")
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -186,7 +262,10 @@ enum ModernTheme {
     // MARK: - 📏 间距系统
     
     /// 超小间距
-    static let spacing1: CGFloat = 4
+    static let spacing0_5: CGFloat = 4
+    
+    /// 超小间距
+    static let spacing1: CGFloat = 8
     
     /// 小间距
     static let spacing2: CGFloat = 8
@@ -205,6 +284,9 @@ enum ModernTheme {
     
     /// 特大间距
     static let spacing7: CGFloat = 32
+    
+    /// 极大间距（Hero 区域）
+    static let spacing8: CGFloat = 44
     
     // MARK: - 🎭 动画系统
     
@@ -277,15 +359,26 @@ extension Color {
 
 struct ModernCardModifier: ViewModifier {
     var padding: CGFloat = ModernTheme.spacing4
-    var backgroundColor: Color = ModernTheme.cardBackground
-    var shadowRadius: CGFloat = 10
+    var backgroundColor: Color = ModernTheme.glassBackground
+    var shadowRadius: CGFloat = 12
+    var blurRadius: CGFloat = 18
+    var borderGradient: LinearGradient = ModernTheme.cardGradient
     
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(backgroundColor)
+            .background(
+                RoundedRectangle(cornerRadius: ModernTheme.largeRadius, style: .continuous)
+                    .fill(backgroundColor)
+                    .blur(radius: blurRadius)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: ModernTheme.largeRadius, style: .continuous)
+                            .stroke(borderGradient, lineWidth: 1.2)
+                            .opacity(0.6)
+                    )
+            )
             .clipShape(RoundedRectangle(cornerRadius: ModernTheme.largeRadius, style: .continuous))
-            .shadow(color: ModernTheme.cardShadow, radius: shadowRadius, x: 0, y: 4)
+            .shadow(color: ModernTheme.cardShadow, radius: shadowRadius, x: 0, y: 8)
     }
 }
 
@@ -293,14 +386,38 @@ extension View {
     /// 应用现代化卡片样式
     func modernCard(
         padding: CGFloat = ModernTheme.spacing4,
-        backgroundColor: Color = ModernTheme.cardBackground,
-        shadowRadius: CGFloat = 10
+        backgroundColor: Color = ModernTheme.glassBackground,
+        shadowRadius: CGFloat = 12,
+        blurRadius: CGFloat = 18,
+        borderGradient: LinearGradient = ModernTheme.cardGradient
     ) -> some View {
         self.modifier(ModernCardModifier(
             padding: padding,
             backgroundColor: backgroundColor,
-            shadowRadius: shadowRadius
+            shadowRadius: shadowRadius,
+            blurRadius: blurRadius,
+            borderGradient: borderGradient
         ))
+    }
+    
+    /// 玻璃态背景容器
+    func glassSurface(
+        cornerRadius: CGFloat = ModernTheme.largeRadius,
+        opacity: Double = 0.55,
+        borderGradient: LinearGradient = ModernTheme.cardGradient
+    ) -> some View {
+        self.background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.white.opacity(opacity))
+                .blur(radius: 12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(borderGradient, lineWidth: 1.1)
+                        .opacity(0.35)
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .shadow(color: ModernTheme.cardShadow, radius: 10, x: 0, y: 6)
     }
 }
 

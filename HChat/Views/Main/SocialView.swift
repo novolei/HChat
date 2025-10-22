@@ -20,6 +20,7 @@ struct SocialView: View {
                 // 背景
                 ModernTheme.backgroundGradient
                     .ignoresSafeArea()
+                    .interactiveDismissKeyboard()
                 
                 ScrollView {
                     VStack(spacing: ModernTheme.spacing5) {
@@ -47,7 +48,6 @@ struct SocialView: View {
                 }
                 .scrollDismissesKeyboardIfAvailable() // 滚动时隐藏键盘
             }
-            .hideKeyboardOnTap() // 点击背景隐藏键盘
             .navigationTitle("社交")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
