@@ -77,22 +77,34 @@ struct VoiceMessagePreview: View {
     @State private var currentTime: TimeInterval = 0
     @State private var playbackTimer: Timer?
     
+    // 播放进度（0.0 - 1.0）
+    private var playbackProgress: CGFloat {
+        guard duration > 0 else { return 0 }
+        return CGFloat(currentTime / duration)
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
-            // 波形可视化 + 播放/暂停按钮
-            ZStack {
-                // 波形
+            // 波形可视化 + 播放/暂停按钮 + 进度指示
+            ZStack(alignment: .leading) {
+                // 播放进度遮罩（已播放部分高亮）
                 HStack(spacing: 2) {
                     ForEach(0..<min(waveformData.count, 40), id: \.self) { index in
+                        let progress = playbackProgress * CGFloat(waveformData.count)
+                        let isPlayed = CGFloat(index) < progress
+                        
                         RoundedRectangle(cornerRadius: 1.5)
                             .fill(
                                 LinearGradient(
-                                    colors: [ModernTheme.accent, ModernTheme.secondaryAccent],
+                                    colors: isPlayed 
+                                        ? [ModernTheme.accent, ModernTheme.secondaryAccent]
+                                        : [ModernTheme.accent.opacity(0.3), ModernTheme.secondaryAccent.opacity(0.3)],
                                     startPoint: .bottom,
                                     endPoint: .top
                                 )
                             )
                             .frame(width: 3, height: max(4, waveformData[index] * 32))
+                            .animation(.linear(duration: 0.1), value: isPlayed)
                     }
                 }
                 .frame(height: 40)
@@ -104,24 +116,29 @@ struct VoiceMessagePreview: View {
                     handleLongPress()
                 }
                 
-                // 播放/暂停按钮（显示在波形上层）
-                if isPlaying || currentTime > 0 {
-                    Button {
-                        handleTap()
-                    } label: {
-                        Circle()
-                            .fill(Color.black.opacity(0.5))
-                            .frame(width: 32, height: 32)
-                            .overlay(
-                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .offset(x: isPlaying ? 0 : 1)
+                // 播放/暂停按钮（始终显示，提示用户可以播放）
+                Button {
+                    handleTap()
+                } label: {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [ModernTheme.accent.opacity(0.9), ModernTheme.secondaryAccent.opacity(0.9)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
+                        )
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.white)
+                                .offset(x: isPlaying ? 0 : 1.5)
+                        )
+                        .shadow(color: ModernTheme.accent.opacity(0.4), radius: 8, x: 0, y: 2)
                 }
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
             }
             
             // 时长显示
