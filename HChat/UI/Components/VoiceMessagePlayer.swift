@@ -16,6 +16,12 @@ struct VoiceMessagePlayer: View {
     let waveformData: [CGFloat]   // 波形数据
     let onPlay: () -> Void
     
+    // 播放进度（0.0 - 1.0）
+    private var playbackProgress: CGFloat {
+        guard duration > 0 else { return 0 }
+        return CGFloat(currentTime / duration)
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
             // 播放按钮
@@ -35,12 +41,19 @@ struct VoiceMessagePlayer: View {
             }
             .buttonStyle(.plain)
             
-            // 波形可视化
+            // 波形可视化 + 播放进度
             HStack(spacing: 2) {
                 ForEach(0..<min(waveformData.count, 30), id: \.self) { index in
+                    let progress = playbackProgress * CGFloat(waveformData.count)
+                    let isPlayed = CGFloat(index) < progress
+                    
                     RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Color.white.opacity(0.7))
+                        .fill(
+                            // 已播放部分：完全不透明；未播放部分：30% 透明
+                            Color.white.opacity(isPlayed ? 0.9 : 0.3)
+                        )
                         .frame(width: 2, height: max(4, waveformData[index] * 24))
+                        .animation(.linear(duration: 0.1), value: isPlayed)
                 }
             }
             .frame(height: 28)
