@@ -35,17 +35,18 @@ struct ChatInputView: View {
             
             // 语音预览或输入区域
             if let preview = voicePreview {
-                // 显示语音消息预览
-                VoiceMessagePreview(
-                    duration: preview.duration,
-                    waveformData: preview.waveform,
-                    onSend: {
-                        sendVoiceMessage()
-                    },
-                    onCancel: {
-                        cancelVoicePreview()
-                    }
-                )
+            // 显示语音消息预览
+            VoiceMessagePreview(
+                duration: preview.duration,
+                waveformData: preview.waveform,
+                audioURL: preview.url,  // 传递音频文件路径用于试听
+                onSend: {
+                    sendVoiceMessage()
+                },
+                onCancel: {
+                    cancelVoicePreview()
+                }
+            )
                 .padding(.horizontal, ModernTheme.spacing5)
                 .padding(.vertical, ModernTheme.spacing3)
                 .transition(.move(edge: .bottom).combined(with: .opacity))

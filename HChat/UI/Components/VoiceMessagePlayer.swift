@@ -68,29 +68,64 @@ struct VoiceMessagePlayer: View {
 struct VoiceMessagePreview: View {
     let duration: TimeInterval
     let waveformData: [CGFloat]
+    let audioURL: URL  // 音频文件路径
     let onSend: () -> Void
     let onCancel: () -> Void
     
+    @State private var audioPlayer: AVAudioPlayer?
+    @State private var isPlaying = false
+    @State private var currentTime: TimeInterval = 0
+    @State private var playbackTimer: Timer?
+    
     var body: some View {
         HStack(spacing: 12) {
-            // 波形可视化
-            HStack(spacing: 2) {
-                ForEach(0..<min(waveformData.count, 40), id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(
-                            LinearGradient(
-                                colors: [ModernTheme.accent, ModernTheme.secondaryAccent],
-                                startPoint: .bottom,
-                                endPoint: .top
+            // 波形可视化 + 播放/暂停按钮
+            ZStack {
+                // 波形
+                HStack(spacing: 2) {
+                    ForEach(0..<min(waveformData.count, 40), id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(
+                                LinearGradient(
+                                    colors: [ModernTheme.accent, ModernTheme.secondaryAccent],
+                                    startPoint: .bottom,
+                                    endPoint: .top
+                                )
                             )
-                        )
-                        .frame(width: 3, height: max(4, waveformData[index] * 32))
+                            .frame(width: 3, height: max(4, waveformData[index] * 32))
+                    }
+                }
+                .frame(height: 40)
+                .contentShape(Rectangle()) // 确保整个区域可点击
+                .onTapGesture {
+                    handleTap()
+                }
+                .onLongPressGesture(minimumDuration: 0.5) {
+                    handleLongPress()
+                }
+                
+                // 播放/暂停按钮（显示在波形上层）
+                if isPlaying || currentTime > 0 {
+                    Button {
+                        handleTap()
+                    } label: {
+                        Circle()
+                            .fill(Color.black.opacity(0.5))
+                            .frame(width: 32, height: 32)
+                            .overlay(
+                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .offset(x: isPlaying ? 0 : 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
-            .frame(height: 40)
             
             // 时长显示
-            Text(formatDuration(duration))
+            Text(formatDuration(isPlaying ? currentTime : duration))
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundColor(ModernTheme.primaryText)
                 .monospacedDigit()
@@ -99,6 +134,7 @@ struct VoiceMessagePreview: View {
             
             // 取消按钮
             Button {
+                stopPlayback()
                 onCancel()
                 HapticManager.impact(style: .light)
             } label: {
@@ -110,6 +146,7 @@ struct VoiceMessagePreview: View {
             
             // 发送按钮
             Button {
+                stopPlayback()
                 onSend()
                 HapticManager.impact(style: .medium)
             } label: {
@@ -148,6 +185,103 @@ struct VoiceMessagePreview: View {
                     lineWidth: 1.5
                 )
         )
+        .onDisappear {
+            stopPlayback()
+        }
+    }
+    
+    // MARK: - 试听控制
+    
+    /// 处理轻点：播放/暂停
+    private func handleTap() {
+        if isPlaying {
+            pausePlayback()
+        } else {
+            if currentTime > 0 {
+                resumePlayback()
+            } else {
+                startPlayback()
+            }
+        }
+    }
+    
+    /// 处理长按：停止播放
+    private func handleLongPress() {
+        stopPlayback()
+        HapticManager.impact(style: .medium)
+        DebugLogger.log("⏹️ 长按停止试听", level: .info)
+    }
+    
+    /// 开始播放
+    private func startPlayback() {
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: audioURL)
+            audioPlayer?.prepareToPlay()
+            audioPlayer?.play()
+            
+            isPlaying = true
+            currentTime = 0
+            
+            // 启动计时器更新进度
+            playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [self] _ in
+                if let player = audioPlayer {
+                    currentTime = player.currentTime
+                    
+                    // 播放完成
+                    if !player.isPlaying {
+                        stopPlayback()
+                    }
+                }
+            }
+            
+            HapticManager.impact(style: .light)
+            DebugLogger.log("▶️ 开始试听", level: .info)
+        } catch {
+            DebugLogger.log("❌ 试听失败: \(error.localizedDescription)", level: .error)
+        }
+    }
+    
+    /// 暂停播放
+    private func pausePlayback() {
+        audioPlayer?.pause()
+        isPlaying = false
+        playbackTimer?.invalidate()
+        playbackTimer = nil
+        
+        HapticManager.impact(style: .light)
+        DebugLogger.log("⏸️ 暂停试听", level: .info)
+    }
+    
+    /// 继续播放
+    private func resumePlayback() {
+        audioPlayer?.play()
+        isPlaying = true
+        
+        // 重新启动计时器
+        playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [self] _ in
+            if let player = audioPlayer {
+                currentTime = player.currentTime
+                
+                if !player.isPlaying {
+                    stopPlayback()
+                }
+            }
+        }
+        
+        HapticManager.impact(style: .light)
+        DebugLogger.log("▶️ 继续试听", level: .info)
+    }
+    
+    /// 停止播放
+    private func stopPlayback() {
+        audioPlayer?.stop()
+        audioPlayer = nil
+        isPlaying = false
+        currentTime = 0
+        playbackTimer?.invalidate()
+        playbackTimer = nil
+        
+        DebugLogger.log("⏹️ 停止试听", level: .info)
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -183,13 +317,10 @@ struct VoiceMessagePreview: View {
             )
             .frame(maxWidth: 300)
             
-            // 输入框预览
-            VoiceMessagePreview(
-                duration: 23,
-                waveformData: (0..<40).map { _ in CGFloat.random(in: 0.2...1.0) },
-                onSend: {},
-                onCancel: {}
-            )
+            // 输入框预览（需要临时音频文件用于预览）
+            // VoiceMessagePreview 需要 audioURL 参数
+            Text("预览需要真实音频文件")
+                .foregroundColor(.white.opacity(0.7))
         }
         .padding()
     }
