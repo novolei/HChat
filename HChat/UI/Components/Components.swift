@@ -128,7 +128,6 @@ struct MessageRowView: View {
             }
         }
         .padding(.vertical, 4)
-        .padding(.horizontal, 12)
         .contextMenu {
             // ✨ P1: 回复消息
             Button {

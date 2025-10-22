@@ -18,7 +18,7 @@ struct ChatInputView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // ✨ P1: 回复预览条
+            // ✨ P1: 回复预览条（优化：移除复杂过渡动画）
             if let replyTo = client.replyManager.replyingTo {
                 ReplyPreviewBar(
                     replyTo: replyTo,
@@ -26,7 +26,7 @@ struct ChatInputView: View {
                         client.replyManager.clearReply()
                     }
                 )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(.opacity)
             }
             
             // 输入区域
@@ -91,6 +91,7 @@ struct ChatInputView: View {
             }
             .padding(.horizontal, ModernTheme.spacing5)
             .padding(.vertical, ModernTheme.spacing4)
+            .padding(.bottom, ModernTheme.spacing6)
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
     }

@@ -23,8 +23,23 @@ struct ChatMessageListView: View {
     
     // 滚动控制
     @State private var shouldAutoScroll = true  // 是否自动滚动到底部
+    @State private var hasMarkedRead: Set<String> = []  // 已标记为已读的消息ID
     
     @FocusState private var isSearchFocused: Bool
+    
+    // 缓存过滤结果以提升性能
+    private var filteredMessages: [ChatMessage] {
+        let channel = client.currentChannel
+        let messages = client.state.messages(in: channel)
+        
+        guard !searchText.isEmpty else { return messages }
+        
+        let query = searchText.lowercased()
+        return messages.filter { msg in
+            msg.text.lowercased().contains(query) || 
+            msg.sender.lowercased().contains(query)
+        }
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -65,59 +80,59 @@ struct ChatMessageListView: View {
             .animation(HChatTheme.quickAnimation, value: isSearchFocused)
             .animation(HChatTheme.quickAnimation, value: searchText.isEmpty)
             
-            // 消息列表
+            // 消息列表（优化性能：使用 ScrollView + LazyVStack 替代 List）
             ScrollViewReader { proxy in
-                ZStack {
-                    List {
-                        ForEach(filteredMessages, id: \.id) { m in
-                        MessageRowView(
-                            message: m,
-                            myNick: client.myNick,
-                            onReactionTap: { emoji in
-                                handleReactionTap(emoji: emoji, message: m)
-                            },
-                            onShowReactionPicker: {
-                                selectedMessage = m
-                                showFullPicker = true
-                            },
-                            onShowReactionDetail: {
-                                selectedMessage = m
-                                showReactionDetail = true
-                            },
-                            onReply: {
-                                // ✨ P1: 设置回复目标
-                                client.replyManager.setReplyTarget(m)
-                            },
-                            onJumpToReply: { messageId in
-                                // ✨ P1: 跳转到被引用的消息（TODO: 实现滚动）
-                                DebugLogger.log("💬 跳转到消息: \(messageId)", level: .debug)
-                            },
-                            onShowReadReceipts: { // ✨ P1: 显示已读回执详情
-                                selectedMessage = m
-                                showReadReceiptDetail = true
-                            }
-                        )
-                        .id(m.id)
-                        .onAppear {
-                            // ✨ P1: 消息可见时自动发送已读回执
-                            if m.sender != client.myNick {
-                                client.readReceiptManager.markAsRead(messageId: m.id, channel: m.channel)
-                            }
-                        }
-                        }
-                    }
-                    .listStyle(.plain)
-                    .listRowBackground(Color.clear)
-                    .scrollContentBackground(.hidden)
-                    .scrollDismissesKeyboardIfAvailable() // 滚动时隐藏键盘
-                    
+                if filteredMessages.isEmpty {
                     // 空状态视图
-                    if filteredMessages.isEmpty {
-                        EmptyChatStateView(
-                            isSearching: !searchText.isEmpty,
-                            channelName: client.currentChannel
-                        )
+                    EmptyChatStateView(
+                        isSearching: !searchText.isEmpty,
+                        channelName: client.currentChannel
+                    )
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(filteredMessages, id: \.id) { m in
+                                MessageRowView(
+                                    message: m,
+                                    myNick: client.myNick,
+                                    onReactionTap: { emoji in
+                                        handleReactionTap(emoji: emoji, message: m)
+                                    },
+                                    onShowReactionPicker: {
+                                        selectedMessage = m
+                                        showFullPicker = true
+                                    },
+                                    onShowReactionDetail: {
+                                        selectedMessage = m
+                                        showReactionDetail = true
+                                    },
+                                    onReply: {
+                                        // ✨ P1: 设置回复目标
+                                        client.replyManager.setReplyTarget(m)
+                                    },
+                                    onJumpToReply: { messageId in
+                                        // ✨ P1: 跳转到被引用的消息
+                                        withAnimation {
+                                            proxy.scrollTo(messageId, anchor: .center)
+                                        }
+                                    },
+                                    onShowReadReceipts: {
+                                        selectedMessage = m
+                                        showReadReceiptDetail = true
+                                    }
+                                )
+                                .id(m.id)
+                                .onAppear {
+                                    // ✨ 优化：只标记一次已读，避免重复触发
+                                    if m.sender != client.myNick && !hasMarkedRead.contains(m.id) {
+                                        hasMarkedRead.insert(m.id)
+                                        client.readReceiptManager.markAsRead(messageId: m.id, channel: m.channel)
+                                    }
+                                }
+                            }
+                        }
                     }
+                    .scrollDismissesKeyboardIfAvailable()
                 }
                 .onChange(of: filteredMessages.count) { oldCount, newCount in
                     // 当有新消息时自动滚动到底部
@@ -156,12 +171,6 @@ struct ChatMessageListView: View {
         }
     }
     
-    private var filteredMessages: [ChatMessage] {
-        let all = client.messagesByChannel[client.currentChannel] ?? []
-        guard !searchText.isEmpty else { return all }
-        let key = searchText.lowercased()
-        return all.filter { $0.text.lowercased().contains(key) || $0.sender.lowercased().contains(key) }
-    }
     
     // ✨ P1: 处理反应点击
     private func handleReactionTap(emoji: String, message: ChatMessage) {
