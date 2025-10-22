@@ -111,6 +111,7 @@ struct ChatMessageListView: View {
                                 MessageRowView(
                                     message: m,
                                     myNick: client.myNick,
+                                    client: client,  // 传递 client 用于音频播放
                                     onReactionTap: { emoji in
                                         handleReactionTap(emoji: emoji, message: m)
                                     },

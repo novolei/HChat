@@ -49,6 +49,7 @@ final class HackChatClient {
     let replyManager: ReplyManager         // 消息引用/回复管理器
     let readReceiptManager: ReadReceiptManager // 已读回执管理器
     let typingIndicatorManager: TypingIndicatorManager // 正在输入指示器
+    let audioPlayerManager = AudioPlayerManager() // 音频播放管理器
     
     // MARK: - WebSocket
     private var webSocket: URLSessionWebSocketTask?

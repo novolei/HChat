@@ -11,6 +11,7 @@ import AVKit
 struct MessageRowView: View {
     let message: ChatMessage
     let myNick: String
+    let client: HackChatClient  // 添加 client 参数用于音频播放
     var onReactionTap: ((String) -> Void)? = nil           // 点击反应
     var onShowReactionPicker: (() -> Void)? = nil          // 显示反应选择器
     var onShowReactionDetail: (() -> Void)? = nil          // 显示反应详情
@@ -93,7 +94,7 @@ struct MessageRowView: View {
                 }
 
                 ForEach(message.attachments) { a in
-                    AttachmentCard(attachment: a)
+                    AttachmentCard(attachment: a, client: client)
                 }
                 
                 // ✨ P1: 表情反应气泡（显示在消息下方，对齐方式跟随消息）
@@ -244,6 +245,7 @@ struct RichText: View {
 
 struct AttachmentCard: View {
     let attachment: Attachment
+    let client: HackChatClient  // 添加 client 参数
     
     var body: some View {
         Group {
@@ -253,7 +255,7 @@ struct AttachmentCard: View {
             case .video:
                 VideoAttachmentView(attachment: attachment)
             case .audio:
-                AudioAttachmentView(attachment: attachment)
+                AudioAttachmentView(attachment: attachment, client: client)
             case .file:
                 FileAttachmentView(attachment: attachment)
             }
@@ -330,22 +332,38 @@ struct VideoAttachmentView: View {
 
 struct AudioAttachmentView: View {
     let attachment: Attachment
-    @State private var isPlaying = false
-    @State private var currentTime: TimeInterval = 0
-    @State private var duration: TimeInterval = 10.0 // 默认时长
-    @State private var playbackTimer: Timer?
+    let client: HackChatClient
+    
+    private var audioId: String {
+        attachment.getUrl ?? attachment.filename
+    }
+    
+    private var audioManager: AudioPlayerManager {
+        client.audioPlayerManager
+    }
+    
+    private var isPlaying: Bool {
+        audioManager.isPlayingAudio(id: audioId)
+    }
+    
+    private var currentTime: TimeInterval {
+        isPlaying ? audioManager.currentTime : 0
+    }
+    
+    private var duration: TimeInterval {
+        audioManager.duration > 0 ? audioManager.duration : 10.0
+    }
     
     var body: some View {
         VoiceMessagePlayer(
             duration: duration,
             waveformData: generateWaveform(),
             onPlay: {
-                togglePlayback()
+                Task {
+                    await togglePlayback()
+                }
             }
         )
-        .onDisappear {
-            stopPlayback()
-        }
     }
     
     private func generateWaveform() -> [CGFloat] {
@@ -357,47 +375,20 @@ struct AudioAttachmentView: View {
         }
     }
     
-    private func togglePlayback() {
-        if isPlaying {
-            pausePlayback()
-        } else {
-            startPlayback()
-        }
-    }
-    
-    private func startPlayback() {
-        // TODO: 实现真实的音频下载、解密和播放
-        isPlaying = true
-        currentTime = 0
-        
-        // 模拟播放进度
-        playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            currentTime += 0.1
-            if currentTime >= duration {
-                stopPlayback()
-            }
+    private func togglePlayback() async {
+        guard let urlString = attachment.getUrl else {
+            DebugLogger.log("❌ 无效的音频 URL", level: .error)
+            return
         }
         
-        HapticManager.impact(style: .light)
-        DebugLogger.log("▶️ 开始播放语音消息", level: .info)
-    }
-    
-    private func pausePlayback() {
-        isPlaying = false
-        playbackTimer?.invalidate()
-        playbackTimer = nil
+        // 使用当前频道的加密密钥
+        let passphrase = client.currentChannel
         
-        HapticManager.impact(style: .light)
-        DebugLogger.log("⏸️ 暂停播放", level: .info)
-    }
-    
-    private func stopPlayback() {
-        isPlaying = false
-        currentTime = 0
-        playbackTimer?.invalidate()
-        playbackTimer = nil
-        
-        DebugLogger.log("⏹️ 停止播放", level: .info)
+        await audioManager.togglePlayback(
+            audioId: audioId,
+            url: urlString,
+            passphrase: passphrase
+        )
     }
 }
 
