@@ -18,6 +18,7 @@ struct ChatInputView: View {
     @State private var lastTypingTime: Date?
     @State private var isRecordingVoice = false
     @State private var audioRecorder = AudioRecorderManager()
+    @State private var voicePreview: (url: URL, duration: TimeInterval, waveform: [CGFloat])? = nil
     
     var body: some View {
         VStack(spacing: 0) {
@@ -32,23 +33,40 @@ struct ChatInputView: View {
                 .transition(.opacity)
             }
             
-            // 输入区域
-            HStack(alignment: .bottom, spacing: HChatTheme.mediumSpacing) {
-                // 附件按钮
-                Button {
-                    onAttachment()
-                    HapticManager.impact(style: .light)
-                } label: {
-                    Image(systemName: "paperclip")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.white)
-                        .padding(12)
-                        .background(
-                            Circle()
-                                .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        )
-                }
-                .buttonStyle(.plain)
+            // 语音预览或输入区域
+            if let preview = voicePreview {
+                // 显示语音消息预览
+                VoiceMessagePreview(
+                    duration: preview.duration,
+                    waveformData: preview.waveform,
+                    onSend: {
+                        sendVoiceMessage()
+                    },
+                    onCancel: {
+                        cancelVoicePreview()
+                    }
+                )
+                .padding(.horizontal, ModernTheme.spacing5)
+                .padding(.vertical, ModernTheme.spacing3)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else {
+                // 正常输入区域
+                HStack(alignment: .bottom, spacing: HChatTheme.mediumSpacing) {
+                    // 附件按钮
+                    Button {
+                        onAttachment()
+                        HapticManager.impact(style: .light)
+                    } label: {
+                        Image(systemName: "paperclip")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(.white)
+                            .padding(12)
+                            .background(
+                                Circle()
+                                    .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                    }
+                    .buttonStyle(.plain)
                 
                 // 输入框
                 TextField("输入消息...", text: $inputText, axis: .vertical)
@@ -96,9 +114,10 @@ struct ChatInputView: View {
                     .buttonStyle(.plain)
                     .transition(.scale.combined(with: .opacity))
                 }
+                }
+                .padding(.horizontal, ModernTheme.spacing5)
+                .padding(.vertical, ModernTheme.spacing3)
             }
-            .padding(.horizontal, ModernTheme.spacing5)
-            .padding(.vertical, ModernTheme.spacing3)
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
         .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
@@ -189,20 +208,49 @@ struct ChatInputView: View {
     private func handleVoiceRecorded(_ url: URL) {
         DebugLogger.log("🎤 录音完成: \(url.path)", level: .info)
         
+        // 获取录音时长
+        let duration = audioRecorder.duration
+        
+        // 获取波形数据（从 AudioRecorderManager 的历史记录）
+        let waveform = generateWaveformData(duration: duration)
+        
+        // 显示预览
+        voicePreview = (url: url, duration: duration, waveform: waveform)
+    }
+    
+    private func sendVoiceMessage() {
+        guard let preview = voicePreview else { return }
+        
         // 加密并上传音频文件
         Task {
             do {
-                let attachment = try await uploadVoiceFile(url: url)
+                let attachment = try await uploadVoiceFile(url: preview.url)
                 DebugLogger.log("✅ 语音文件上传成功: \(attachment.filename)", level: .info)
                 
-                // TODO: 发送语音消息到聊天
+                // 发送语音消息到聊天
                 await MainActor.run {
                     client.sendAttachment(attachment)
+                    voicePreview = nil // 清除预览
                 }
             } catch {
                 DebugLogger.log("❌ 语音文件上传失败: \(error.localizedDescription)", level: .error)
             }
         }
+    }
+    
+    private func cancelVoicePreview() {
+        if let preview = voicePreview {
+            // 删除临时文件
+            try? FileManager.default.removeItem(at: preview.url)
+        }
+        voicePreview = nil
+        HapticManager.impact(style: .light)
+    }
+    
+    private func generateWaveformData(duration: TimeInterval) -> [CGFloat] {
+        // 生成40个采样点的波形数据
+        // 实际应该从音频文件中提取，这里使用随机数模拟
+        return (0..<40).map { _ in CGFloat.random(in: 0.3...1.0) }
     }
     
     private func handleVoiceCancel() {
