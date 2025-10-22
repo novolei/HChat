@@ -99,16 +99,18 @@ struct ChatInputView: View {
             }
             .padding(.horizontal, ModernTheme.spacing5)
             .padding(.vertical, ModernTheme.spacing3)
-            
-            // 语音录制界面
+        }
+        .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
+        .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
+        .overlay(
+            // 语音录制界面（使用 overlay 避免影响布局）
             VoiceRecorderView(
                 isRecording: $isRecordingVoice,
                 onRecordingComplete: handleVoiceRecorded,
                 onCancel: handleVoiceCancel
             )
-        }
-        .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
-        .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
+            .allowsHitTesting(isRecordingVoice)
+        )
     }
     
     // MARK: - 语音录制按钮

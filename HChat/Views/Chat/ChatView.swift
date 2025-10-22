@@ -73,6 +73,14 @@ struct ChatView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
+                    // 连接状态提示条
+                    ConnectionStatusBanner(
+                        status: client.connectionStatus,
+                        onReconnect: {
+                            client.reconnect()
+                        }
+                    )
+                    
                     header
                         .padding(.horizontal, ModernTheme.spacing4)
                         .padding(.top, ModernTheme.spacing2)

@@ -54,9 +54,12 @@ final class HackChatClient {
     private var serverURL: URL?  // 保存服务器 URL 用于重连
     private var whoTimer: Timer?  // 保存定时器引用以便清理
     
-    /// 连接状态
+    /// 连接状态（可观察）
+    private(set) var connectionStatus: ConnectionStatus = .disconnected
+    
+    /// 连接状态（兼容性）
     var isConnected: Bool {
-        webSocket?.state == .running
+        connectionStatus == .connected
     }
     
     // MARK: - 初始化
@@ -91,6 +94,7 @@ final class HackChatClient {
         
         // 保存 URL 用于重连
         self.serverURL = url
+        connectionStatus = .connecting
         
         // 清理旧的定时器
         whoTimer?.invalidate()
@@ -102,6 +106,10 @@ final class HackChatClient {
         // 发送初始命令
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 200_000_000)
+            
+            // 更新连接状态
+            connectionStatus = .connected
+            
             DebugLogger.log("👤 设置昵称: \(state.myNick)", level: .websocket)
             send(json: ["type": "nick", "nick": state.myNick])
             DebugLogger.log("🚪 加入频道: \(state.currentChannel)", level: .websocket)
@@ -124,6 +132,7 @@ final class HackChatClient {
     
     func disconnect() {
         DebugLogger.log("🔌 断开 WebSocket 连接", level: .websocket)
+        connectionStatus = .disconnected
         whoTimer?.invalidate()
         whoTimer = nil
         webSocket?.cancel(with: .goingAway, reason: nil)
@@ -277,11 +286,16 @@ final class HackChatClient {
                     shouldContinue = false
                     Task { @MainActor in
                         self.webSocket = nil
+                        self.connectionStatus = .disconnected
+                        
                         // 自动重连（3秒后）
                         DebugLogger.log("⏰ 将在 3 秒后自动重连...", level: .info)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                            self.reconnect()
-                        }
+                        
+                        // 发送触觉反馈
+                        HapticManager.notification(type: .warning)
+                        
+                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                        self.reconnect()
                     }
                 } else {
                     DebugLogger.log("❌ WebSocket 接收失败: \(errorMsg)", level: .error)
