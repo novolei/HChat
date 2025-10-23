@@ -368,8 +368,8 @@ struct GestureNavigationContainer: View {
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-                    .shadow(color: .black.opacity(0.2), radius: 20, y: 10)
+                    .fill(Color.black.opacity(0.6))  // ✨ 淡黑色背景，更醒目
+                    .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
             )
             .padding(.bottom, 40)
         }
