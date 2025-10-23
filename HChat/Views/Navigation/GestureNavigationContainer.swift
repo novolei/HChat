@@ -345,7 +345,7 @@ struct GestureNavigationContainer: View {
     // MARK: - 手势处理
     
     private var navigationGesture: some Gesture {
-        DragGesture(minimumDistance: 25)  // 提高最小距离：20 → 25，避免误触
+        DragGesture(minimumDistance: 62.5)  // 2.5倍：25 → 62.5，避免误触
             .onChanged { value in
                 handleDragChanged(value)
             }
@@ -370,7 +370,7 @@ struct GestureNavigationContainer: View {
         let isHorizontalGesture = abs(translation.width) > abs(translation.height)
         
         // ✨ 全方位垂直手势（所有列都支持）
-        if isVerticalGesture && translation.height > 30 && isScrolledToTop {
+        if isVerticalGesture && translation.height > 75 && isScrolledToTop {  // 2.5倍：30 → 75
             let dampingFactor: CGFloat = 0.85  // 提高阻尼：0.75 → 0.85（更跟手）
             let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5  // 提高上限：0.45 → 0.5（更自由）
             
@@ -379,7 +379,7 @@ struct GestureNavigationContainer: View {
             dragOffset = CGSize(width: 0, height: min(translation.height * dampingFactor * elasticDamping, maxDrag))
         }
         // ✨ 全方位水平手势（所有行都支持）
-        else if isHorizontalGesture && abs(translation.width) > 30 {
+        else if isHorizontalGesture && abs(translation.width) > 75 {  // 2.5倍：30 → 75
             let dampingFactor: CGFloat = 0.75  // 提高阻尼：0.65 → 0.75（更跟手）
             let maxDrag: CGFloat = UIScreen.main.bounds.width * 0.6  // 提高上限：0.55 → 0.6（更自由）
             
@@ -410,7 +410,7 @@ struct GestureNavigationContainer: View {
     }
     
     private func handleDragEnded(_ value: DragGesture.Value) {
-        let threshold: CGFloat = 180  // 🔧 提高阈值：150 → 180，更慎重的切换
+        let threshold: CGFloat = 450  // 🔧 2.5倍：180 → 450，更慎重的切换
         isTransitioning = true
         
         let isVerticalGesture = abs(value.translation.height) > abs(value.translation.width)
