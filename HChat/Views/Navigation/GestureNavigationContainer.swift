@@ -182,92 +182,91 @@ struct GestureNavigationContainer: View {
     
     @ViewBuilder
     private func viewForPosition(vertical: Int, horizontal: Int) -> some View {
-        switch (vertical, horizontal) {
-        // ========== 列0：Explorer（带层级指示） ==========
-        case (0, 0), (1, 0), (2, 0):
-            ZStack(alignment: .top) {
+        // ✨ 所有列都根据垂直索引显示对应内容
+        switch vertical {
+        // ========== 行0：Moments 层 ==========
+        case 0:
+            switch horizontal {
+            case 0:  // Explorer列
                 ExplorerView(client: client)
                     .onScrollPosition { isTop, isBottom in
                         if vertical == verticalIndex && horizontal == horizontalIndex {
                             handleScrollPosition(isTop: isTop, isBottom: isBottom)
                         }
                     }
-                
-                // ✨ 层级指示器（微妙的标签）
-                if vertical == verticalIndex && horizontal == horizontalIndex {
-                    layerIndicator(for: vertical)
-                        .padding(.top, 50)
-                        .transition(.opacity)
-                }
-            }
-        
-        // ========== 列1：Home（不同内容） ==========
-        case (0, 1):  // 行0 = Moments
-            MomentsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
-                if vertical == verticalIndex && horizontal == horizontalIndex {
-                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                }
-            })
-        case (1, 1):  // 行1 = Connections
-            ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
-                if vertical == verticalIndex && horizontal == horizontalIndex {
-                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                }
-            })
-        case (2, 1):  // 行2 = Channels
-            ChannelsContactsTabView(client: client)
-                .onScrollPosition { isTop, isBottom in
+            case 1:  // Home列
+                MomentsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
                     if vertical == verticalIndex && horizontal == horizontalIndex {
                         handleScrollPosition(isTop: isTop, isBottom: isBottom)
                     }
-                }
-        
-        // ========== 列2：Personal（带层级指示） ==========
-        case (0, 2), (1, 2), (2, 2):
-            ZStack(alignment: .top) {
+                })
+            case 2:  // Personal列
                 PersonalizationView(client: client)
                     .onScrollPosition { isTop, isBottom in
                         if vertical == verticalIndex && horizontal == horizontalIndex {
                             handleScrollPosition(isTop: isTop, isBottom: isBottom)
                         }
                     }
-                
-                // ✨ 层级指示器（微妙的标签）
-                if vertical == verticalIndex && horizontal == horizontalIndex {
-                    layerIndicator(for: vertical)
-                        .padding(.top, 50)
-                        .transition(.opacity)
-                }
+            default:
+                EmptyView()
+            }
+        
+        // ========== 行1：Connections 层 ==========
+        case 1:
+            switch horizontal {
+            case 0:  // Explorer列 - 显示 Connections
+                ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                    if vertical == verticalIndex && horizontal == horizontalIndex {
+                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                    }
+                })
+            case 1:  // Home列 - 显示 Connections
+                ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                    if vertical == verticalIndex && horizontal == horizontalIndex {
+                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                    }
+                })
+            case 2:  // Personal列 - 显示 Connections
+                ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                    if vertical == verticalIndex && horizontal == horizontalIndex {
+                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                    }
+                })
+            default:
+                EmptyView()
+            }
+        
+        // ========== 行2：Channels 层 ==========
+        case 2:
+            switch horizontal {
+            case 0:  // Explorer列 - 显示 Channels
+                ChannelsContactsTabView(client: client)
+                    .onScrollPosition { isTop, isBottom in
+                        if vertical == verticalIndex && horizontal == horizontalIndex {
+                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                        }
+                    }
+            case 1:  // Home列 - 显示 Channels
+                ChannelsContactsTabView(client: client)
+                    .onScrollPosition { isTop, isBottom in
+                        if vertical == verticalIndex && horizontal == horizontalIndex {
+                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                        }
+                    }
+            case 2:  // Personal列 - 显示 Channels
+                ChannelsContactsTabView(client: client)
+                    .onScrollPosition { isTop, isBottom in
+                        if vertical == verticalIndex && horizontal == horizontalIndex {
+                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                        }
+                    }
+            default:
+                EmptyView()
             }
         
         default:
             EmptyView()
         }
-    }
-    
-    /// 层级指示器 - 显示当前所在层级
-    @ViewBuilder
-    private func layerIndicator(for layer: Int) -> some View {
-        let layerName = ["Moments", "Connections", "Channels"][layer]
-        let layerColor = [Color.purple, Color.blue, Color.green][layer]
-        
-        HStack(spacing: 4) {
-            Circle()
-                .fill(layerColor.opacity(0.9))
-                .frame(width: 6, height: 6)
-            
-            Text(layerName)
-                .font(.caption2)
-                .fontWeight(.medium)
-                .foregroundColor(.white.opacity(0.9))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(0.5))  // ✨ 淡黑色背景
-                .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
-        )
     }
     
     // MARK: - 背景渐变
