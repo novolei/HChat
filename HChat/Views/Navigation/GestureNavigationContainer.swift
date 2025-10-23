@@ -131,35 +131,38 @@ struct GestureNavigationContainer: View {
     
     @ViewBuilder
     private var currentView: some View {
-        // ✨ 全方位双画面衔接：9宫格任意位置都支持垂直和水平拖动
+        // ✨ 全方位双画面衔接 + 智能跳过空白格子 + 淡出效果
         ZStack {
             let screenHeight = UIScreen.main.bounds.height
             let screenWidth = UIScreen.main.bounds.width
             
-            // 垂直拖动时（所有列都支持）
+            // 垂直拖动时（智能跳过空白）
             if abs(dragOffset.height) > 10 && dragOffset.height > 0 {
-                let nextV = (verticalIndex + 1) % 3
+                let nextV = nextValidVerticalIndex(from: verticalIndex, for: horizontalIndex)
                 
-                // 当前视图 - 跟随手指向下移动
+                // ✨ 当前视图 - 跟随手指向下移动 + 淡出效果
                 viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
                     .offset(y: dragOffset.height)
+                    .opacity(calculateFadeOutOpacity(for: dragOffset.height, max: screenHeight * 0.5))
                     .zIndex(1)
                 
-                // 下一个视图 - 从上方跟随进入（保持当前列）
+                // 下一个有效视图 - 从上方跟随进入
                 viewForPosition(vertical: nextV, horizontal: horizontalIndex)
                     .offset(y: -screenHeight + dragOffset.height)
                     .zIndex(0)
             }
-            // 水平拖动时（所有行都支持）
+            // 水平拖动时（智能跳过空白）
             else if abs(dragOffset.width) > 10 {
-                let nextH = dragOffset.width < 0 ? (horizontalIndex + 1) % 3 : (horizontalIndex - 1 + 3) % 3
+                let direction = dragOffset.width < 0 ? -1 : 1
+                let nextH = nextValidHorizontalIndex(from: horizontalIndex, direction: direction, for: verticalIndex)
                 
-                // 当前视图 - 跟随手指移动
+                // ✨ 当前视图 - 跟随手指移动 + 淡出效果
                 viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
                     .offset(x: dragOffset.width)
+                    .opacity(calculateFadeOutOpacity(for: abs(dragOffset.width), max: screenWidth * 0.6))
                     .zIndex(1)
                 
-                // 下一个视图 - 从对应方向跟随进入（保持当前行）
+                // 下一个有效视图 - 从对应方向跟随进入
                 viewForPosition(vertical: verticalIndex, horizontal: nextH)
                     .offset(x: dragOffset.width < 0 ? screenWidth + dragOffset.width : -screenWidth + dragOffset.width)
                     .zIndex(0)
@@ -170,6 +173,12 @@ struct GestureNavigationContainer: View {
                     .zIndex(1)
             }
         }
+    }
+    
+    /// 计算淡出透明度（拖动越远，越淡）
+    private func calculateFadeOutOpacity(for offset: CGFloat, max maxOffset: CGFloat) -> Double {
+        let progress = min(offset / maxOffset, 1.0)  // 0.0 ~ 1.0
+        return 1.0 - (progress * 0.3)  // 最多淡出到 0.7（保持低调）
     }
     
     @ViewBuilder
@@ -217,6 +226,50 @@ struct GestureNavigationContainer: View {
         default:
             EmptyView()
         }
+    }
+    
+    // MARK: - 9宫格有效性检查
+    
+    /// 检查指定位置是否有有效视图（非空白）
+    private func isValidPosition(vertical v: Int, horizontal h: Int) -> Bool {
+        switch (v, h) {
+        case (0, 0), (0, 1), (0, 2):  // 行0：全部有效
+            return true
+        case (1, 1):                   // 行1：仅中央
+            return true
+        case (2, 1):                   // 行2：仅中央
+            return true
+        default:                       // 其他位置：空白
+            return false
+        }
+    }
+    
+    /// 智能查找下一个有效位置（垂直方向）
+    private func nextValidVerticalIndex(from current: Int, for horizontal: Int) -> Int {
+        var next = (current + 1) % 3
+        var attempts = 0
+        
+        // 最多尝试3次，防止死循环
+        while !isValidPosition(vertical: next, horizontal: horizontal) && attempts < 3 {
+            next = (next + 1) % 3
+            attempts += 1
+        }
+        
+        return next
+    }
+    
+    /// 智能查找下一个有效位置（水平方向）
+    private func nextValidHorizontalIndex(from current: Int, direction: Int, for vertical: Int) -> Int {
+        var next = direction < 0 ? (current + 1) % 3 : (current - 1 + 3) % 3
+        var attempts = 0
+        
+        // 最多尝试3次
+        while !isValidPosition(vertical: vertical, horizontal: next) && attempts < 3 {
+            next = direction < 0 ? (next + 1) % 3 : (next - 1 + 3) % 3
+            attempts += 1
+        }
+        
+        return next
     }
     
     // MARK: - 背景渐变
@@ -386,29 +439,32 @@ struct GestureNavigationContainer: View {
         let isHorizontalGesture = abs(value.translation.width) > abs(value.translation.height)
         
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            // ✨ 全方位垂直导航（所有列都支持）
+            // ✨ 智能垂直导航（自动跳过空白格子）
             if isVerticalGesture && value.translation.height > threshold && isScrolledToTop {
-                // ✅ 顶部下拉 - 新视图从上方滑入
+                // ✅ 顶部下拉 - 跳到下一个有效视图
                 lastTransitionDirection = .top
-                verticalIndex = (verticalIndex + 1) % 3
+                verticalIndex = nextValidVerticalIndex(from: verticalIndex, for: horizontalIndex)
                 impactMedium.impactOccurred()
                 flashPositionIndicator()
+                print("🔄 垂直切换: 跳到 (\(verticalIndex), \(horizontalIndex))")
             }
             
-            // ✨ 全方位水平导航（所有行都支持）
+            // ✨ 智能水平导航（自动跳过空白格子）
             if isHorizontalGesture && abs(value.translation.width) > threshold {
                 if value.translation.width < 0 {
-                    // 左滑（手指向左） - 新视图从右侧滑入
+                    // 左滑（手指向左） - 跳到下一个有效视图
                     lastTransitionDirection = .trailing
-                    horizontalIndex = (horizontalIndex + 1) % 3
+                    horizontalIndex = nextValidHorizontalIndex(from: horizontalIndex, direction: -1, for: verticalIndex)
                     impactHeavy.impactOccurred()
                     flashPositionIndicator()
+                    print("🔄 水平切换（左）: 跳到 (\(verticalIndex), \(horizontalIndex))")
                 } else {
-                    // 右滑（手指向右） - 新视图从左侧滑入
+                    // 右滑（手指向右） - 跳到下一个有效视图
                     lastTransitionDirection = .leading
-                    horizontalIndex = (horizontalIndex - 1 + 3) % 3
+                    horizontalIndex = nextValidHorizontalIndex(from: horizontalIndex, direction: 1, for: verticalIndex)
                     impactHeavy.impactOccurred()
                     flashPositionIndicator()
+                    print("🔄 水平切换（右）: 跳到 (\(verticalIndex), \(horizontalIndex))")
                 }
             }
             
