@@ -186,7 +186,8 @@ private struct HintView: View {
     }
 }
 
-private struct MomentsFeedView: View {
+/// ✨ Moments 记忆流视图 - 可被外部导航容器复用
+struct MomentsFeedView: View {
     var client: HackChatClient
     @Binding var isAtTop: Bool
     @Binding var externalDragOffset: CGFloat
@@ -378,7 +379,8 @@ private struct MomentsFeedView: View {
     }
 }
 
-private struct ConnectionsFeedView: View {
+/// ✨ Connections 聊天记录视图 - 可被外部导航容器复用
+struct ConnectionsFeedView: View {
     var client: HackChatClient
     @Binding var isAtTop: Bool
     @Binding var externalDragOffset: CGFloat

@@ -138,7 +138,8 @@ struct GestureNavigationContainer: View {
                         handleScrollPosition(isTop: isTop, isBottom: isBottom)
                     }
             case (0, 1):
-                MomentsHomeView(client: client)
+                // ✨ 使用独立的 MomentsFeedView，避免与 MomentsHomeView 冲突
+                MomentsFeedViewWrapper(client: client)
                     .onScrollPosition { isTop, isBottom in
                         handleScrollPosition(isTop: isTop, isBottom: isBottom)
                     }
@@ -150,7 +151,8 @@ struct GestureNavigationContainer: View {
             
             // 第二层：Connections（仅中央）
             case (1, 1):
-                ConversationsView(client: client)
+                // ✨ 使用独立的 ConnectionsFeedView
+                ConnectionsFeedViewWrapper(client: client)
                     .onScrollPosition { isTop, isBottom in
                         handleScrollPosition(isTop: isTop, isBottom: isBottom)
                     }
@@ -226,11 +228,11 @@ struct GestureNavigationContainer: View {
     }
     
     private var nextVerticalLevel: String {
-        ["Connections", "Channels", "Moments"][verticalIndex + 1 < 3 ? verticalIndex + 1 : 0]
+        ["Connections", "Channels", "Moments Feed"][verticalIndex + 1 < 3 ? verticalIndex + 1 : 0]
     }
     
     private var previousVerticalLevel: String {
-        ["Moments", "Connections", "Channels"][verticalIndex - 1 >= 0 ? verticalIndex - 1 : 2]
+        ["Moments Feed", "Connections", "Channels"][verticalIndex - 1 >= 0 ? verticalIndex - 1 : 2]
     }
     
     // MARK: - 中央位置指示器
@@ -281,9 +283,9 @@ struct GestureNavigationContainer: View {
     
     private var currentPositionName: String {
         if verticalIndex == 0 {
-            return ["Explorer", "Moments", "Personal"][horizontalIndex]
+            return ["Explorer", "Moments Feed", "Personal"][horizontalIndex]
         } else {
-            return ["Moments", "Connections", "Channels"][verticalIndex]
+            return ["Moments Feed", "Connections", "Channels"][verticalIndex]
         }
     }
     
@@ -604,6 +606,44 @@ struct GestureNavScrollOffsetKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
+    }
+}
+
+// MARK: - View Wrappers
+
+/// MomentsFeedView 包装器 - 独立使用，不依赖 MomentsHomeView
+private struct MomentsFeedViewWrapper: View {
+    let client: HackChatClient
+    @State private var isAtTop: Bool = true
+    @State private var externalDragOffset: CGFloat = 0
+    private let triggerDistance: CGFloat = 200
+    
+    var body: some View {
+        // ✨ 直接使用 MomentsHomeView 中的 MomentsFeedView
+        MomentsFeedView(
+            client: client,
+            isAtTop: $isAtTop,
+            externalDragOffset: $externalDragOffset,
+            triggerDistance: triggerDistance
+        )
+    }
+}
+
+/// ConnectionsFeedView 包装器 - 独立使用
+private struct ConnectionsFeedViewWrapper: View {
+    let client: HackChatClient
+    @State private var isAtTop: Bool = true
+    @State private var externalDragOffset: CGFloat = 0
+    private let triggerDistance: CGFloat = 200
+    
+    var body: some View {
+        // ✨ 直接使用 MomentsHomeView 中的 ConnectionsFeedView
+        ConnectionsFeedView(
+            client: client,
+            isAtTop: $isAtTop,
+            externalDragOffset: $externalDragOffset,
+            triggerDistance: triggerDistance
+        )
     }
 }
 
