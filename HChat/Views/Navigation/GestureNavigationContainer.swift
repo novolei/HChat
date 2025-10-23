@@ -370,26 +370,36 @@ struct GestureNavigationContainer: View {
         let isHorizontalGesture = abs(translation.width) > abs(translation.height)
         
         // ✨ 全方位垂直手势（所有列都支持）
-        if isVerticalGesture && translation.height > 30 && isScrolledToTop {  // 提高阈值：20→30
-            let dampingFactor: CGFloat = 0.75  // 降低阻尼，增加回弹感
-            let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.45  // 稍微降低上限，增加紧致感
+        if isVerticalGesture && translation.height > 30 && isScrolledToTop {
+            let dampingFactor: CGFloat = 0.85  // 提高阻尼：0.75 → 0.85（更跟手）
+            let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5  // 提高上限：0.45 → 0.5（更自由）
             
-            // ✨ 添加弹性阻尼（越拖越难）
-            let elasticDamping = calculateElasticDamping(offset: translation.height, max: maxDrag)
+            // ✨ 使用更平滑的弹性阻尼曲线
+            let elasticDamping = calculateSmoothElasticDamping(offset: translation.height, max: maxDrag)
             dragOffset = CGSize(width: 0, height: min(translation.height * dampingFactor * elasticDamping, maxDrag))
         }
         // ✨ 全方位水平手势（所有行都支持）
-        else if isHorizontalGesture && abs(translation.width) > 30 {  // 提高阈值：20→30
-            let dampingFactor: CGFloat = 0.65  // 降低阻尼，增加回弹感
-            let maxDrag: CGFloat = UIScreen.main.bounds.width * 0.55  // 稍微降低上限
+        else if isHorizontalGesture && abs(translation.width) > 30 {
+            let dampingFactor: CGFloat = 0.75  // 提高阻尼：0.65 → 0.75（更跟手）
+            let maxDrag: CGFloat = UIScreen.main.bounds.width * 0.6  // 提高上限：0.55 → 0.6（更自由）
             
-            // ✨ 添加弹性阻尼（越拖越难）
-            let elasticDamping = calculateElasticDamping(offset: abs(translation.width), max: maxDrag)
+            // ✨ 使用更平滑的弹性阻尼曲线
+            let elasticDamping = calculateSmoothElasticDamping(offset: abs(translation.width), max: maxDrag)
             dragOffset = CGSize(width: min(abs(translation.width) * dampingFactor * elasticDamping, maxDrag) * (translation.width > 0 ? 1 : -1), height: 0)
         }
         else {
             dragOffset = .zero
         }
+    }
+    
+    /// 计算平滑弹性阻尼（更平滑的曲线，减少抖动）
+    private func calculateSmoothElasticDamping(offset: CGFloat, max maxOffset: CGFloat) -> CGFloat {
+        let progress = min(offset / maxOffset, 1.0)
+        // ✨ 使用三次贝塞尔曲线，创造更平滑的阻尼感
+        // easeOut 曲线：快速开始，平滑结束
+        let easeOut = 1.0 - pow(1.0 - progress, 3.0)
+        // 阻尼范围：1.0 → 0.8（更温和的阻尼）
+        return 1.0 - (easeOut * 0.2)
     }
     
     /// 计算弹性阻尼（越接近上限，阻尼越大，产生回弹感）
@@ -421,12 +431,17 @@ struct GestureNavigationContainer: View {
             // 回弹动画：仿微信丝滑效果 ✨
             .interpolatingSpring(
                 mass: 1.0,           // 质量
-                stiffness: 200,      // 刚度（越高回弹越快）
-                damping: 20,         // 阻尼（越低振荡越多）
+                stiffness: 150,      // 刚度降低：200 → 150（更柔和）
+                damping: 18,         // 阻尼降低：20 → 18（更平滑）
                 initialVelocity: 0   // 初始速度
             )
         
-        withAnimation(animation) {
+        // ✨ 使用 transaction 确保动画不被打断
+        var transaction = Transaction(animation: animation)
+        transaction.disablesAnimations = false
+        transaction.isContinuous = false
+        
+        withTransaction(transaction) {
             // ✨ 全方位垂直导航
             if isVerticalGesture && value.translation.height > threshold && isScrolledToTop {
                 // ✅ 顶部下拉 - 切换到下一行
