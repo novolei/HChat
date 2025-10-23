@@ -369,8 +369,8 @@ struct GestureNavigationContainer: View {
         let isVerticalGesture = abs(translation.height) > abs(translation.width)
         let isHorizontalGesture = abs(translation.width) > abs(translation.height)
         
-        // ✨ 全方位垂直手势（所有列都支持，在顶部时）
-        if isVerticalGesture && translation.height > 20 && isScrolledToTop {
+        // ✨ 垂直手势（仅在中央列，避免Explorer和Personal的重复视图问题）
+        if isVerticalGesture && translation.height > 20 && isScrolledToTop && horizontalIndex == 1 {
             let dampingFactor: CGFloat = 0.8
             let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5
             dragOffset = CGSize(width: 0, height: min(translation.height * dampingFactor, maxDrag))
@@ -394,8 +394,8 @@ struct GestureNavigationContainer: View {
         let isHorizontalGesture = abs(value.translation.width) > abs(value.translation.height)
         
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            // ✨ 全方位垂直导航
-            if isVerticalGesture && value.translation.height > threshold && isScrolledToTop {
+            // ✨ 垂直导航（仅中央列）
+            if isVerticalGesture && value.translation.height > threshold && isScrolledToTop && horizontalIndex == 1 {
                 // ✅ 顶部下拉 - 切换到下一行
                 lastTransitionDirection = .top
                 verticalIndex = (verticalIndex + 1) % 3
