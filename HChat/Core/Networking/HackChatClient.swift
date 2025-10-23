@@ -211,6 +211,40 @@ final class HackChatClient {
         }
     }
     
+    /// ✨ 发送私聊消息
+    /// - Parameters:
+    ///   - to: 接收者昵称
+    ///   - text: 消息文本
+    func sendDirectMessage(to: String, text: String) {
+        guard !text.isEmpty else { return }
+        
+        let id = UUID().uuidString
+        state.markMessageAsSent(id: id)
+        
+        // 创建或更新私聊会话
+        let conversation = state.createOrGetDM(with: to)
+        
+        // 创建本地回显消息
+        let message = ChatMessage(
+            id: id,
+            channel: conversation.id,  // 虚拟频道 ID
+            sender: state.myNick,
+            text: text,
+            isLocalEcho: true
+        )
+        
+        // 添加到消息列表
+        state.appendMessage(message)
+        
+        // 更新会话的最后消息
+        state.updateConversationLastMessage(conversation.id, message: message)
+        
+        // 发送到服务器
+        send(json: ["type": "dm", "id": id, "to": to, "text": text])
+        
+        DebugLogger.log("📤 发送私聊消息: \(state.myNick) -> \(to) (conversation: \(conversation.id))", level: .info)
+    }
+    
     /// 修改昵称（用于 UI 调用，会同步到服务器）
     func changeNick(_ newNick: String) {
         let trimmedNick = newNick.trimmingCharacters(in: .whitespacesAndNewlines)

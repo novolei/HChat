@@ -137,9 +137,58 @@ final class MessageHandler {
         let from = (obj["from"] as? String) ?? "unknown"
         let to = (obj["to"] as? String) ?? ""
         let text = (obj["text"] as? String) ?? ""
-        let ch = "pm/" + ((from == state.myNick) ? to : from)
         
-        state.appendMessage(ChatMessage(id: msgId, channel: ch, sender: from, text: text))
+        // ✨ 确定对方用户（私聊的另一方）
+        let otherUser = (from == state.myNick) ? to : from
+        
+        // ✨ 创建或更新私聊会话
+        let conversation = state.createOrGetDM(with: otherUser)
+        
+        // ✨ 使用虚拟私聊频道（与后端保持一致）
+        // 后端格式: dm:user1:user2（已排序）
+        let ch = conversation.id  // 会话 ID 就是虚拟频道 ID
+        
+        // 解析附件信息（如果有）
+        var attachments: [Attachment] = []
+        if let att = obj["attachment"] as? [String: Any] {
+            if let typeString = att["type"] as? String,
+               let kind = Attachment.Kind(rawValue: typeString),
+               let urlString = att["url"] as? String,
+               let url = URL(string: urlString),
+               let filename = att["filename"] as? String {
+                let attachment = Attachment(
+                    kind: kind,
+                    filename: filename,
+                    contentType: "application/octet-stream",
+                    putUrl: nil,
+                    getUrl: url,
+                    sizeBytes: nil
+                )
+                attachments = [attachment]
+            }
+        }
+        
+        // 创建消息
+        let message = ChatMessage(
+            id: msgId,
+            channel: ch,
+            sender: from,
+            text: text,
+            attachments: attachments
+        )
+        
+        // 添加消息到频道
+        state.appendMessage(message)
+        
+        // ✨ 更新会话的最后消息
+        state.updateConversationLastMessage(conversation.id, message: message)
+        
+        // ✨ 如果不是自己发的，增加未读数
+        if from != state.myNick {
+            state.incrementConversationUnread(conversation.id)
+        }
+        
+        DebugLogger.log("💬 收到私聊消息: \(from) -> \(to) (conversation: \(conversation.id))", level: .info)
     }
     
     private func handleUserJoined(_ obj: [String: Any], state: ChatState) {

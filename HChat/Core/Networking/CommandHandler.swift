@@ -75,10 +75,30 @@ final class CommandHandler {
         let id = UUID().uuidString
         state.markMessageAsSent(id: id)
         
-        // 归入一个 "pm/\(to)" 的本地会话
-        let ch = "pm/\(to)"
-        state.appendMessage(ChatMessage(id: id, channel: ch, sender: state.myNick, text: text, isLocalEcho: true))
+        // ✨ 创建或更新私聊会话
+        let conversation = state.createOrGetDM(with: to)
+        
+        // ✨ 使用虚拟私聊频道（与后端保持一致）
+        let ch = conversation.id  // 会话 ID 就是虚拟频道 ID: "dm:user1:user2"
+        
+        // 创建本地回显消息
+        let message = ChatMessage(
+            id: id,
+            channel: ch,
+            sender: state.myNick,
+            text: text,
+            isLocalEcho: true
+        )
+        
+        state.appendMessage(message)
+        
+        // ✨ 更新会话的最后消息
+        state.updateConversationLastMessage(conversation.id, message: message)
+        
+        // 发送到服务器
         sendMessage(["type": "dm", "id": id, "to": to, "text": text])
+        
+        DebugLogger.log("📤 发送私聊消息: \(state.myNick) -> \(to) (conversation: \(conversation.id))", level: .info)
     }
     
     private func handleMeAction(_ action: String, state: ChatState) {
