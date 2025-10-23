@@ -53,7 +53,7 @@ struct GestureNavigationContainer: View {
                 // 内容区域（满屏）
                 currentView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .offset(x: dragOffset.width, y: dragOffset.height)
+                    // ✨ 移除 offset，防止抖动，拖动效果由内部 ZStack 处理
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
@@ -131,47 +131,78 @@ struct GestureNavigationContainer: View {
     
     @ViewBuilder
     private var currentView: some View {
-        Group {
-            switch (verticalIndex, horizontalIndex) {
-            // 第一层：Moments Home 三视图
-            case (0, 0):
-                ExplorerView(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                    }
-            case (0, 1):
-                // ✨ 使用独立的 MomentsFeedView，避免与 MomentsHomeView 冲突
-                MomentsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
-                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                })
-            case (0, 2):
-                PersonalizationView(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                    }
+        // ✨ 抖音/微信风格：同时显示当前和相邻视图，创造衔接感
+        ZStack {
+            // 当前视图
+            viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
+                .zIndex(1)
             
-            // 第二层：Connections（仅中央）
-            case (1, 1):
-                // ✨ 使用独立的 ConnectionsFeedView
-                ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
-                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                })
-            
-            // 第三层：Channels + Contacts（仅中央）
-            case (2, 1):
-                ChannelsContactsTabView(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                    }
-            
-            default:
-                EmptyView()
+            // 预加载相邻视图（根据拖动方向）
+            if abs(dragOffset.height) > 10 || abs(dragOffset.width) > 10 {
+                // 垂直方向的相邻视图
+                if dragOffset.height > 10 && horizontalIndex == 1 {
+                    let nextV = (verticalIndex + 1) % 3
+                    viewForPosition(vertical: nextV, horizontal: horizontalIndex)
+                        .offset(y: -UIScreen.main.bounds.height + dragOffset.height)
+                        .zIndex(0)
+                }
+                
+                // 水平方向的相邻视图
+                if abs(dragOffset.width) > 10 && verticalIndex == 0 {
+                    let nextH = dragOffset.width < 0 ? (horizontalIndex + 1) % 3 : (horizontalIndex - 1 + 3) % 3
+                    viewForPosition(vertical: verticalIndex, horizontal: nextH)
+                        .offset(x: dragOffset.width < 0 ? UIScreen.main.bounds.width + dragOffset.width : -UIScreen.main.bounds.width + dragOffset.width)
+                        .zIndex(0)
+                }
             }
         }
-        .transition(.asymmetric(
-            insertion: .move(edge: transitionEdge).combined(with: .opacity),
-            removal: .move(edge: oppositeEdge(of: transitionEdge)).combined(with: .opacity)
-        ))
+    }
+    
+    @ViewBuilder
+    private func viewForPosition(vertical: Int, horizontal: Int) -> some View {
+        switch (vertical, horizontal) {
+        // 第一层：Moments Home 三视图
+        case (0, 0):
+            ExplorerView(client: client)
+                .onScrollPosition { isTop, isBottom in
+                    if vertical == verticalIndex && horizontal == horizontalIndex {
+                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                    }
+                }
+        case (0, 1):
+            MomentsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                if vertical == verticalIndex && horizontal == horizontalIndex {
+                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                }
+            })
+        case (0, 2):
+            PersonalizationView(client: client)
+                .onScrollPosition { isTop, isBottom in
+                    if vertical == verticalIndex && horizontal == horizontalIndex {
+                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                    }
+                }
+        
+        // 第二层：Connections（仅中央）
+        case (1, 1):
+            ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                if vertical == verticalIndex && horizontal == horizontalIndex {
+                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                }
+            })
+        
+        // 第三层：Channels + Contacts（仅中央）
+        case (2, 1):
+            ChannelsContactsTabView(client: client)
+                .onScrollPosition { isTop, isBottom in
+                    if vertical == verticalIndex && horizontal == horizontalIndex {
+                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                    }
+                }
+        
+        default:
+            EmptyView()
+        }
     }
     
     // MARK: - 背景渐变
@@ -322,8 +353,10 @@ struct GestureNavigationContainer: View {
                 dragOffset = .zero
                 return
             }
-            // 参考 MomentsHomeView: 拖动距离有上限
-            dragOffset = CGSize(width: 0, height: min(translation.height * 0.5, 150))
+            // ✨ 更线性的拖动，更跟手
+            let dampingFactor: CGFloat = 0.8  // 从 0.5 提高到 0.8
+            let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5  // 最多拖动半屏
+            dragOffset = CGSize(width: 0, height: min(translation.height * dampingFactor, maxDrag))
         }
         // 水平手势（仅在第0层）
         else if isHorizontalGesture && verticalIndex == 0 {
@@ -331,7 +364,10 @@ struct GestureNavigationContainer: View {
                 dragOffset = .zero
                 return
             }
-            dragOffset = CGSize(width: min(abs(translation.width) * 0.4, 120) * (translation.width > 0 ? 1 : -1), height: 0)
+            // ✨ 更线性的拖动，更跟手
+            let dampingFactor: CGFloat = 0.7  // 从 0.4 提高到 0.7
+            let maxDrag: CGFloat = UIScreen.main.bounds.width * 0.6  // 最多拖动 60% 屏宽
+            dragOffset = CGSize(width: min(abs(translation.width) * dampingFactor, maxDrag) * (translation.width > 0 ? 1 : -1), height: 0)
         }
         else {
             dragOffset = .zero
@@ -339,7 +375,7 @@ struct GestureNavigationContainer: View {
     }
     
     private func handleDragEnded(_ value: DragGesture.Value) {
-        let threshold: CGFloat = 100
+        let threshold: CGFloat = 150  // 🔧 提高阈值：从 100 到 150
         isTransitioning = true
         
         let isVerticalGesture = abs(value.translation.height) > abs(value.translation.width)
