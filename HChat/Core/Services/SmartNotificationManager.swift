@@ -48,11 +48,11 @@ final class SmartNotificationManager {
         var urgentOnly: Bool = false
         var keywords: [String] = []
         var mutedChannels: [String] = []
-        var workingHours: WorkingHours? = WorkingHours()
+        var workingHours: WorkingHours? = nil  // ✅ 默认禁用工作时间限制
         var groupByChannel: Bool = true
         
         struct WorkingHours: Codable, Equatable {
-            var enabled: Bool = true
+            var enabled: Bool = false  // ✅ 默认禁用
             var startHour: Int = 9    // 9:00
             var endHour: Int = 18      // 18:00
             var weekdaysOnly: Bool = true
