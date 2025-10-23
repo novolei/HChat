@@ -86,7 +86,8 @@ struct MessageTimestampWithStatus: View {
     }
 
     private var statusColor: Color {
-        message.sender == myNick ? HChatTheme.myMessageText.opacity(0.7) : HChatTheme.tertiaryText.opacity(0.8)
+        // ✅ 使用 message.status.color 来区分灰色和蓝色
+        message.status.color
     }
 }
 
