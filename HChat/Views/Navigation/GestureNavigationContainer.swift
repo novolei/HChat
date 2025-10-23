@@ -139,10 +139,9 @@ struct GestureNavigationContainer: View {
                     }
             case (0, 1):
                 // ✨ 使用独立的 MomentsFeedView，避免与 MomentsHomeView 冲突
-                MomentsFeedViewWrapper(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                    }
+                MomentsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                })
             case (0, 2):
                 PersonalizationView(client: client)
                     .onScrollPosition { isTop, isBottom in
@@ -152,10 +151,9 @@ struct GestureNavigationContainer: View {
             // 第二层：Connections（仅中央）
             case (1, 1):
                 // ✨ 使用独立的 ConnectionsFeedView
-                ConnectionsFeedViewWrapper(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                    }
+                ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                })
             
             // 第三层：Channels + Contacts（仅中央）
             case (2, 1):
@@ -315,15 +313,24 @@ struct GestureNavigationContainer: View {
         let isVerticalGesture = abs(value.translation.height) > abs(value.translation.width)
         let isHorizontalGesture = abs(value.translation.width) > abs(value.translation.height)
         
+        // 🐛 调试：打印手势信息
+        print("🎯 手势检测: vertical=\(isVerticalGesture), horizontal=\(isHorizontalGesture)")
+        print("   位置: v=\(verticalIndex), h=\(horizontalIndex)")
+        print("   滚动状态: top=\(isScrolledToTop), bottom=\(isScrolledToBottom)")
+        print("   拖动距离: \(value.translation)")
+        
         // 垂直手势（仅在中央列）
         if isVerticalGesture && horizontalIndex == 1 {
             // 顶部下拉（单指）
             if value.translation.height > 0 && isScrolledToTop {
                 dragOffset = CGSize(width: 0, height: value.translation.height * 0.4)
+                print("✅ 触发顶部下拉，offset=\(dragOffset)")
                 
                 if value.translation.height > 60 && value.translation.height < 65 {
                     impactLight.impactOccurred()
                 }
+            } else {
+                print("❌ 垂直手势未满足条件: height=\(value.translation.height), isTop=\(isScrolledToTop)")
             }
             // 底部上滑（双指）- 暂时禁用，DragGesture 不支持 numberOfTouches
             // TODO: 使用 UIGestureRecognizer 实现双指检测
@@ -340,10 +347,13 @@ struct GestureNavigationContainer: View {
         // 水平手势（仅在 Home 层）
         else if isHorizontalGesture && verticalIndex == 0 {
             dragOffset = CGSize(width: value.translation.width * 0.3, height: 0)
+            print("✅ 触发水平滑动，offset=\(dragOffset)")
             
             if abs(value.translation.width) > 60 && abs(value.translation.width) < 65 {
                 impactLight.impactOccurred()
             }
+        } else {
+            print("❌ 手势未匹配任何条件")
         }
     }
     
@@ -409,6 +419,9 @@ struct GestureNavigationContainer: View {
     private func handleScrollPosition(isTop: Bool, isBottom: Bool) {
         isScrolledToTop = isTop
         isScrolledToBottom = isBottom
+        
+        // 🐛 调试：打印滚动状态
+        print("📜 滚动位置更新: isTop=\(isTop), isBottom=\(isBottom)")
         
         // 在边缘时显示提示
         if isTop || isBottom {
@@ -617,6 +630,7 @@ private struct MomentsFeedViewWrapper: View {
     @State private var isAtTop: Bool = true
     @State private var externalDragOffset: CGFloat = 0
     private let triggerDistance: CGFloat = 200
+    let onScrollPosition: (Bool, Bool) -> Void
     
     var body: some View {
         // ✨ 直接使用 MomentsHomeView 中的 MomentsFeedView
@@ -626,6 +640,11 @@ private struct MomentsFeedViewWrapper: View {
             externalDragOffset: $externalDragOffset,
             triggerDistance: triggerDistance
         )
+        .onChange(of: isAtTop) { oldValue, newValue in
+            // 🐛 调试
+            print("📜 MomentsFeedView 滚动状态变化: isAtTop=\(newValue)")
+            onScrollPosition(newValue, false)
+        }
     }
 }
 
@@ -635,6 +654,7 @@ private struct ConnectionsFeedViewWrapper: View {
     @State private var isAtTop: Bool = true
     @State private var externalDragOffset: CGFloat = 0
     private let triggerDistance: CGFloat = 200
+    let onScrollPosition: (Bool, Bool) -> Void
     
     var body: some View {
         // ✨ 直接使用 MomentsHomeView 中的 ConnectionsFeedView
@@ -644,6 +664,11 @@ private struct ConnectionsFeedViewWrapper: View {
             externalDragOffset: $externalDragOffset,
             triggerDistance: triggerDistance
         )
+        .onChange(of: isAtTop) { oldValue, newValue in
+            // 🐛 调试
+            print("📜 ConnectionsFeedView 滚动状态变化: isAtTop=\(newValue)")
+            onScrollPosition(newValue, false)
+        }
     }
 }
 
