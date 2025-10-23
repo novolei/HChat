@@ -30,14 +30,12 @@ struct MessageStatusIndicator: View {
                         .foregroundColor(message.status.color)
                     
                 case .sent:
-                    Image(systemName: message.status.icon)
-                        .font(.caption2)
-                        .foregroundColor(message.status.color)
+                    // ✓ 单勾（灰色）
+                    SingleCheckmarkView(color: message.status.color, size: 12)
                     
                 case .delivered:
-                    Image(systemName: message.status.icon)
-                        .font(.caption2)
-                        .foregroundColor(message.status.color)
+                    // ✓✓ 双勾（灰色）
+                    DoubleCheckmarkView(color: message.status.color, size: 12)
                     if !message.hasReadReceipts {
                         Text("已送达")
                             .font(.caption2)
@@ -45,12 +43,11 @@ struct MessageStatusIndicator: View {
                     }
                     
                 case .read:
-                    Image(systemName: message.status.icon)
-                        .font(.caption2)
-                        .foregroundColor(message.status.color)
+                    // ✓✓ 双勾（蓝色）
+                    DoubleCheckmarkView(color: message.status.color, size: 12)
                     
                 case .failed:
-                    Image(systemName: message.status.icon)
+                    Image(systemName: "exclamationmark.circle.fill")
                         .font(.caption2)
                         .foregroundColor(message.status.color)
                     Text("发送失败")
@@ -74,10 +71,35 @@ struct MessageTimestampWithStatus: View {
                 .foregroundColor(timestampColor)
 
             if message.sender == myNick {
-                Image(systemName: message.status.icon)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(statusColor)
+                statusIcon
             }
+        }
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch message.status {
+        case .sending:
+            ProgressView()
+                .scaleEffect(0.5)
+                .frame(width: 11, height: 11)
+        
+        case .sent:
+            // ✓ 单勾（灰色）
+            SingleCheckmarkView(color: statusColor, size: 11)
+        
+        case .delivered:
+            // ✓✓ 双勾（灰色）
+            DoubleCheckmarkView(color: statusColor, size: 11)
+        
+        case .read:
+            // ✓✓ 双勾（蓝色）
+            DoubleCheckmarkView(color: statusColor, size: 11)
+        
+        case .failed:
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(statusColor)
         }
     }
 

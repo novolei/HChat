@@ -85,6 +85,12 @@ struct ChatMessageListView: View {
                 markVisibleMessagesAsRead()
             }
         }
+        .onChange(of: filteredMessages.count) { oldCount, newCount in
+            // ✅ 当收到新消息时（且在前台），批量标记可见消息为已读
+            if newCount > oldCount && scenePhase == .active {
+                markVisibleMessagesAsRead()
+            }
+        }
         .onAppear {
             // ✅ 初次打开聊天界面时，批量标记可见消息为已读
             markVisibleMessagesAsRead()
