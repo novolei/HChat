@@ -365,12 +365,18 @@ struct GestureNavigationContainer: View {
             return
         }
         
+        // ✅ 参考 MomentsHomeView：优先检查是否在顶部
+        guard isScrolledToTop else {
+            dragOffset = .zero
+            return
+        }
+        
         let translation = value.translation
         let isVerticalGesture = abs(translation.height) > abs(translation.width)
         let isHorizontalGesture = abs(translation.width) > abs(translation.height)
         
         // ✨ 全方位垂直手势（所有列都支持）
-        if isVerticalGesture && translation.height > 20 && isScrolledToTop {  // 适中阈值
+        if isVerticalGesture && translation.height > 20 {  // 适中阈值
             let dampingFactor: CGFloat = 0.85  // 提高阻尼：0.75 → 0.85（更跟手）
             let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5  // 提高上限：0.45 → 0.5（更自由）
             
