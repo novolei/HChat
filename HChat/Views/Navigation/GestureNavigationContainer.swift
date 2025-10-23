@@ -408,12 +408,24 @@ struct GestureNavigationContainer: View {
         let isVerticalGesture = abs(value.translation.height) > abs(value.translation.width)
         let isHorizontalGesture = abs(value.translation.width) > abs(value.translation.height)
         
-        // ✨ 优化动画：更流畅的弹性效果
-        let animation: Animation = .spring(
-            response: 0.5,        // 响应时间稍长：0.4 → 0.5，更平滑
-            dampingFraction: 0.75, // 降低阻尼：0.8 → 0.75，增加回弹感
-            blendDuration: 0.2    // 添加混合时长，过渡更自然
-        )
+        // 判断是否需要切换
+        let willSwitch = (isVerticalGesture && value.translation.height > threshold && isScrolledToTop) ||
+                        (isHorizontalGesture && abs(value.translation.width) > threshold)
+        
+        // ✨ 根据是否切换选择不同的动画
+        let animation: Animation = willSwitch ?
+            // 切换动画：快速响应
+            .spring(
+                response: 0.5,
+                dampingFraction: 0.75,
+                blendDuration: 0.2
+            ) :
+            // 回弹动画：更慢、更有弹性 ✨
+            .spring(
+                response: 0.7,         // 响应时间更长
+                dampingFraction: 0.6,  // 阻尼更低，回弹更明显
+                blendDuration: 0.35    // 混合时长更长
+            )
         
         withAnimation(animation) {
             // ✨ 全方位垂直导航
@@ -457,7 +469,9 @@ struct GestureNavigationContainer: View {
             dragOffset = .zero
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        // ✨ 根据动画类型调整状态重置时间
+        let resetDelay = willSwitch ? 0.5 : 0.75  // 回弹动画需要更长时间
+        DispatchQueue.main.asyncAfter(deadline: .now() + resetDelay) {
             isTransitioning = false
         }
     }
