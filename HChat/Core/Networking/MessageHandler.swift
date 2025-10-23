@@ -84,6 +84,8 @@ final class MessageHandler {
             handleReactionAdded(obj)
         case "reaction_removed":
             handleReactionRemoved(obj)
+        case "delivered_receipt": // ✨ 送达回执
+            handleDeliveredReceipt(obj)
         case "read_receipt": // ✨ P1: 已读回执
             handleReadReceipt(obj)
         case "typing": // 正在输入
@@ -251,6 +253,11 @@ final class MessageHandler {
         )
         state.appendMessage(message)
         
+        // ✅ 发送送达回执（收到消息立即发送，即使在后台）
+        if nick != state.myNick {
+            readReceiptManager?.markAsDelivered(messageId: msgId, channel: channel)
+        }
+        
         // ✅ 使用新的智能通知系统
         Task {
             // 通知所有消息（智能管理器会判断优先级）
@@ -309,7 +316,13 @@ final class MessageHandler {
         reactionManager?.handleReactionRemoved(obj)
     }
     
-    // MARK: - ✨ P1: 已读回执处理
+    // MARK: - ✨ P1: 送达和已读回执处理
+    
+    /// 处理送达回执通知
+    private func handleDeliveredReceipt(_ obj: [String: Any]) {
+        readReceiptManager?.handleDeliveredReceipt(obj)
+    }
+    
     /// 处理已读回执通知
     private func handleReadReceipt(_ obj: [String: Any]) {
         readReceiptManager?.handleReadReceipt(obj)

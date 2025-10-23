@@ -41,9 +41,9 @@ public enum MessageStatus: String, Codable {
         case .sent:
             return .gray
         case .delivered:
-            return .blue
+            return .gray  // ✅ 灰色双勾（已送达但未读）
         case .read:
-            return .blue
+            return .blue  // ✅ 蓝色双勾（已读）
         case .failed:
             return .red
         }
