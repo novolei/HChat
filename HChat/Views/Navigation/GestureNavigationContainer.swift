@@ -56,6 +56,14 @@ struct GestureNavigationContainer: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
+            // ✨ 透明手势捕获层（关键修复）
+            // 只在特定条件下捕获手势，避免阻塞内容交互
+            if shouldEnableGestureCapture {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(navigationGesture)  // 使用 simultaneousGesture
+            }
+            
             // ✨ 边缘导航提示（呼吸动画）
             if showEdgeHints {
                 edgeNavigationHints
@@ -68,7 +76,6 @@ struct GestureNavigationContainer: View {
                     .transition(.scale.combined(with: .opacity))
             }
         }
-        .gesture(navigationGesture)
         .onAppear {
             setupInitialState()
         }
@@ -84,6 +91,20 @@ struct GestureNavigationContainer: View {
         default:
             return false
         }
+    }
+    
+    private var shouldEnableGestureCapture: Bool {
+        // 🔧 只在满足导航条件时启用手势捕获
+        // 垂直：在中央列且在顶部
+        let canVerticalNav = (horizontalIndex == 1) && (isScrolledToTop || isScrolledToBottom)
+        // 水平：在第0层
+        let canHorizontalNav = (verticalIndex == 0)
+        
+        let enable = canVerticalNav || canHorizontalNav
+        if enable {
+            print("🎯 启用手势捕获: vertical=\(canVerticalNav), horizontal=\(canHorizontalNav)")
+        }
+        return enable
     }
     
     private var minimalistHeader: some View {
