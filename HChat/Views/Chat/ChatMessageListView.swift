@@ -27,6 +27,9 @@ struct ChatMessageListView: View {
     
     @FocusState private var isSearchFocused: Bool
     
+    // ✨ 监听 App 前后台切换
+    @Environment(\.scenePhase) private var scenePhase
+    
     // 计算过滤后的消息
     private var filteredMessages: [ChatMessage] {
         let channel = client.currentChannel
@@ -75,6 +78,16 @@ struct ChatMessageListView: View {
             if let message = selectedMessage {
                 ReadReceiptDetailView(message: message)
             }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            // ✅ 只在 App 切换到前台且在聊天界面时，批量标记可见消息为已读
+            if newPhase == .active && oldPhase != .active {
+                markVisibleMessagesAsRead()
+            }
+        }
+        .onAppear {
+            // ✅ 初次打开聊天界面时，批量标记可见消息为已读
+            markVisibleMessagesAsRead()
         }
     }
     
@@ -143,6 +156,30 @@ struct ChatMessageListView: View {
         }
     }
     
+    // MARK: - Helper Methods
+    
+    /// ✅ 批量标记可见消息为已读
+    /// 只在前台且聊天界面打开时调用
+    private func markVisibleMessagesAsRead() {
+        // 延迟 0.3 秒，确保视图已经完全渲染
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            // 获取最近的 30 条消息（假设这些消息可能在屏幕上可见）
+            let recentMessages = Array(self.filteredMessages.suffix(30))
+            
+            // 只标记其他用户发送的、还未标记的消息
+            for message in recentMessages {
+                if message.sender != self.client.myNick && !self.hasMarkedRead.contains(message.id) {
+                    self.hasMarkedRead.insert(message.id)
+                    self.client.readReceiptManager.markAsRead(
+                        messageId: message.id,
+                        channel: message.channel
+                    )
+                }
+            }
+            
+            DebugLogger.log("✓✓✓ 批量标记 \(recentMessages.count) 条可见消息为已读", level: .debug)
+        }
+    }
 }
 
 // MARK: - Nested Content Builders
@@ -249,12 +286,8 @@ private struct MessageListContent: View {
         )
         .id(message.id)
         .background(rowGeometryReporter(for: message))
-        .onAppear {
-            if message.sender != client.myNick && !hasMarkedRead.contains(message.id) {
-                hasMarkedRead.insert(message.id)
-                client.readReceiptManager.markAsRead(messageId: message.id, channel: message.channel)
-            }
-        }
+        // ✅ 已移除单个消息的 .onAppear 已读标记
+        // 改为在视图层面批量标记（见 body 的 .onChange(of: scenePhase)）
     }
     
     private func rowGeometryReporter(for message: ChatMessage) -> some View {
