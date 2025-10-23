@@ -24,13 +24,28 @@ struct HChatApp: App {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
             case .active:
-                // ✅ App 进入前台，清空 Badge
-                DebugLogger.log("🟢 App 进入前台，清空 Badge", level: .info)
+                // ✅ App 进入前台
+                DebugLogger.log("🟢 App 进入前台，清空 Badge 并检查连接", level: .info)
                 BadgeManager.shared.clearUnread()
+                
+                // ✅ 如果 WebSocket 断开（后台被挂起），自动重连
+                if !client.isConnected {
+                    DebugLogger.log("🔄 检测到 WebSocket 断开，正在自动重连...", level: .info)
+                    if let url = URL(string: "wss://hc.go-lv.com/chat-ws") {
+                        client.connect(to: url)
+                    }
+                }
+                
             case .inactive:
-                DebugLogger.log("🟡 App 进入非活动状态", level: .debug)
+                DebugLogger.log("🟡 App 进入非活动状态（锁屏/切换）", level: .debug)
+                // 不做任何操作，等待进入后台或重新激活
+                
             case .background:
-                DebugLogger.log("🔵 App 进入后台", level: .debug)
+                DebugLogger.log("🔵 App 进入后台，WebSocket 将被 iOS 挂起", level: .debug)
+                // 不主动断开，让 iOS 自然挂起
+                // 服务器会在几秒后检测到断线并广播用户离线
+                // 切回前台时会自动重连
+                
             @unknown default:
                 break
             }
