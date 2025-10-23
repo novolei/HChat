@@ -41,6 +41,11 @@ final class ChatState {
     // MARK: - 加密相关
     var passphraseForEndToEndEncryption: String = ""
     
+    // MARK: - ✨ 会话管理（新增）
+    var conversations: [Conversation] = []           // 所有会话列表
+    var currentConversation: Conversation?           // 当前活跃会话
+    var onlineStatuses: [String: OnlineStatus] = [:] // 用户在线状态映射
+    
     // MARK: - 消息操作
     
     /// 添加消息到频道
@@ -168,6 +173,151 @@ final class ChatState {
         if updated {
             messagesByChannel[channel] = messages
             DebugLogger.log("🔄 批量更新消息状态: \(ids.count) 条 -> \(status.rawValue)", level: .debug)
+        }
+    }
+    
+    // MARK: - ✨ 会话管理方法
+    
+    /// 创建或获取私聊会话
+    func createOrGetDM(with userId: String) -> Conversation {
+        let conversationId = "dm:\(userId)"
+        
+        // 查找已存在的会话
+        if let existing = conversations.first(where: { $0.id == conversationId }) {
+            return existing
+        }
+        
+        // 创建新会话
+        let conversation = Conversation(
+            id: conversationId,
+            type: .dm,
+            title: userId,
+            otherUserId: userId,
+            isOnline: onlineStatuses[userId]?.isOnline ?? false
+        )
+        
+        conversations.append(conversation)
+        sortConversations()
+        
+        DebugLogger.log("✨ 创建新私聊会话: \(userId)", level: .info)
+        return conversation
+    }
+    
+    /// 创建或获取频道会话
+    func createOrGetChannelConversation(channelId: String, title: String? = nil) -> Conversation {
+        let conversationId = "channel:\(channelId)"
+        
+        // 查找已存在的会话
+        if let existing = conversations.first(where: { $0.id == conversationId }) {
+            return existing
+        }
+        
+        // 创建新会话
+        let conversation = Conversation(
+            id: conversationId,
+            type: .channel,
+            title: title ?? channelId,
+            channelId: channelId,
+            memberCount: onlineCountByRoom[channelId] ?? 0
+        )
+        
+        conversations.append(conversation)
+        sortConversations()
+        
+        return conversation
+    }
+    
+    /// 更新会话的最后消息
+    func updateConversationLastMessage(_ conversationId: String, message: ChatMessage) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationId }) else {
+            return
+        }
+        
+        conversations[index].lastMessage = message
+        conversations[index].updatedAt = message.timestamp
+        
+        // 重新排序（最新消息在最上面）
+        sortConversations()
+    }
+    
+    /// 增加会话未读数
+    func incrementConversationUnread(_ conversationId: String) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationId }) else {
+            return
+        }
+        
+        // 如果不是当前会话，增加未读数
+        if currentConversation?.id != conversationId {
+            conversations[index].unreadCount += 1
+        }
+    }
+    
+    /// 清空会话未读数
+    func clearConversationUnread(_ conversationId: String) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationId }) else {
+            return
+        }
+        conversations[index].unreadCount = 0
+    }
+    
+    /// 置顶/取消置顶会话
+    func toggleConversationPin(_ conversationId: String) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationId }) else {
+            return
+        }
+        conversations[index].isPinned.toggle()
+        sortConversations()
+    }
+    
+    /// 免打扰/取消免打扰会话
+    func toggleConversationMute(_ conversationId: String) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationId }) else {
+            return
+        }
+        conversations[index].isMuted.toggle()
+    }
+    
+    /// 删除会话
+    func deleteConversation(_ conversationId: String) {
+        conversations.removeAll { $0.id == conversationId }
+        
+        // 如果删除的是当前会话，清空当前会话
+        if currentConversation?.id == conversationId {
+            currentConversation = nil
+        }
+    }
+    
+    /// 更新用户在线状态
+    func updateUserStatus(_ userId: String, isOnline: Bool, lastSeen: Date? = nil) {
+        // 更新状态映射
+        if var status = onlineStatuses[userId] {
+            status.isOnline = isOnline
+            status.lastSeen = lastSeen ?? (isOnline ? nil : Date())
+            onlineStatuses[userId] = status
+        } else {
+            onlineStatuses[userId] = OnlineStatus(
+                userId: userId,
+                isOnline: isOnline,
+                lastSeen: lastSeen
+            )
+        }
+        
+        // 更新相关私聊会话的在线状态
+        if let index = conversations.firstIndex(where: { $0.type == .dm && $0.otherUserId == userId }) {
+            conversations[index].isOnline = isOnline
+        }
+    }
+    
+    /// 对会话列表排序
+    private func sortConversations() {
+        conversations.sort { conv1, conv2 in
+            // 1. 置顶的在最上面
+            if conv1.isPinned != conv2.isPinned {
+                return conv1.isPinned
+            }
+            
+            // 2. 按最后更新时间排序
+            return conv1.updatedAt > conv2.updatedAt
         }
     }
 }
