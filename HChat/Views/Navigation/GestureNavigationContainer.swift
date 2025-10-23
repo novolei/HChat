@@ -131,7 +131,7 @@ struct GestureNavigationContainer: View {
     
     @ViewBuilder
     private var currentView: some View {
-        // ✨ 全方位双画面衔接 + 淡出效果
+        // ✨ 保留双画面衔接，去掉淡出效果
         ZStack {
             let screenHeight = UIScreen.main.bounds.height
             let screenWidth = UIScreen.main.bounds.width
@@ -140,10 +140,9 @@ struct GestureNavigationContainer: View {
             if abs(dragOffset.height) > 10 && dragOffset.height > 0 {
                 let nextV = (verticalIndex + 1) % 3
                 
-                // ✨ 当前视图 - 跟随手指向下移动 + 淡出效果
+                // ✨ 当前视图 - 跟随手指向下移动（无淡出）
                 viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
                     .offset(y: dragOffset.height)
-                    .opacity(calculateFadeOutOpacity(for: dragOffset.height, max: screenHeight * 0.5))
                     .zIndex(1)
                 
                 // 下一个视图 - 从上方跟随进入
@@ -157,10 +156,9 @@ struct GestureNavigationContainer: View {
                 let targetV = verticalIndex == 0 ? 0 : 0  // 行1/2都回到行0
                 let targetH = dragOffset.width < 0 ? (horizontalIndex + 1) % 3 : (horizontalIndex - 1 + 3) % 3
                 
-                // ✨ 当前视图 - 跟随手指移动 + 淡出效果
+                // ✨ 当前视图 - 跟随手指移动（无淡出）
                 viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
                     .offset(x: dragOffset.width)
-                    .opacity(calculateFadeOutOpacity(for: abs(dragOffset.width), max: screenWidth * 0.6))
                     .zIndex(1)
                 
                 // 目标视图 - 从对应方向跟随进入
@@ -416,15 +414,16 @@ struct GestureNavigationContainer: View {
         let animation: Animation = willSwitch ?
             // 切换动画：快速响应
             .spring(
-                response: 0.5,
-                dampingFraction: 0.75,
-                blendDuration: 0.2
+                response: 0.4,
+                dampingFraction: 0.82,
+                blendDuration: 0.1
             ) :
-            // 回弹动画：更慢、更有弹性 ✨
-            .spring(
-                response: 0.7,         // 响应时间更长
-                dampingFraction: 0.6,  // 阻尼更低，回弹更明显
-                blendDuration: 0.35    // 混合时长更长
+            // 回弹动画：仿微信丝滑效果 ✨
+            .interpolatingSpring(
+                mass: 1.0,           // 质量
+                stiffness: 200,      // 刚度（越高回弹越快）
+                damping: 20,         // 阻尼（越低振荡越多）
+                initialVelocity: 0   // 初始速度
             )
         
         withAnimation(animation) {
