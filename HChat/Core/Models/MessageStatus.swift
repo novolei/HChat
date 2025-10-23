@@ -43,7 +43,7 @@ public enum MessageStatus: String, Codable {
         case .delivered:
             return .gray  // ✅ 灰色双勾（已送达但未读）
         case .read:
-            return .blue  // ✅ 蓝色双勾（已读）
+            return .green  // ✅ 绿色双勾（已读）- WhatsApp 风格
         case .failed:
             return .red
         }

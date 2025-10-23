@@ -13,7 +13,7 @@ struct DoubleCheckmarkView: View {
     let color: Color
     let size: CGFloat
     
-    init(color: Color = .blue, size: CGFloat = 12) {
+    init(color: Color = .green, size: CGFloat = 12) {
         self.color = color
         self.size = size
     }
@@ -72,7 +72,7 @@ struct SingleCheckmarkView: View {
             }
             
             VStack {
-                DoubleCheckmarkView(color: .blue, size: 16)
+                DoubleCheckmarkView(color: .green, size: 16)
                 Text("已读")
                     .font(.caption)
             }
@@ -82,10 +82,10 @@ struct SingleCheckmarkView: View {
         
         // 不同尺寸
         HStack(spacing: 20) {
-            DoubleCheckmarkView(color: .blue, size: 10)
-            DoubleCheckmarkView(color: .blue, size: 12)
-            DoubleCheckmarkView(color: .blue, size: 14)
-            DoubleCheckmarkView(color: .blue, size: 16)
+            DoubleCheckmarkView(color: .green, size: 10)
+            DoubleCheckmarkView(color: .green, size: 12)
+            DoubleCheckmarkView(color: .green, size: 14)
+            DoubleCheckmarkView(color: .green, size: 16)
         }
     }
     .padding()
