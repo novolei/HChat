@@ -183,14 +183,23 @@ struct GestureNavigationContainer: View {
     @ViewBuilder
     private func viewForPosition(vertical: Int, horizontal: Int) -> some View {
         switch (vertical, horizontal) {
-        // ========== 列0：Explorer（所有行） ==========
+        // ========== 列0：Explorer（带层级指示） ==========
         case (0, 0), (1, 0), (2, 0):
-            ExplorerView(client: client)
-                .onScrollPosition { isTop, isBottom in
-                    if vertical == verticalIndex && horizontal == horizontalIndex {
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
+            ZStack(alignment: .top) {
+                ExplorerView(client: client)
+                    .onScrollPosition { isTop, isBottom in
+                        if vertical == verticalIndex && horizontal == horizontalIndex {
+                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                        }
                     }
+                
+                // ✨ 层级指示器（微妙的标签）
+                if vertical == verticalIndex && horizontal == horizontalIndex {
+                    layerIndicator(for: vertical)
+                        .padding(.top, 50)
+                        .transition(.opacity)
                 }
+            }
         
         // ========== 列1：Home（不同内容） ==========
         case (0, 1):  // 行0 = Moments
@@ -213,18 +222,52 @@ struct GestureNavigationContainer: View {
                     }
                 }
         
-        // ========== 列2：Personal（所有行） ==========
+        // ========== 列2：Personal（带层级指示） ==========
         case (0, 2), (1, 2), (2, 2):
-            PersonalizationView(client: client)
-                .onScrollPosition { isTop, isBottom in
-                    if vertical == verticalIndex && horizontal == horizontalIndex {
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
+            ZStack(alignment: .top) {
+                PersonalizationView(client: client)
+                    .onScrollPosition { isTop, isBottom in
+                        if vertical == verticalIndex && horizontal == horizontalIndex {
+                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                        }
                     }
+                
+                // ✨ 层级指示器（微妙的标签）
+                if vertical == verticalIndex && horizontal == horizontalIndex {
+                    layerIndicator(for: vertical)
+                        .padding(.top, 50)
+                        .transition(.opacity)
                 }
+            }
         
         default:
             EmptyView()
         }
+    }
+    
+    /// 层级指示器 - 显示当前所在层级
+    @ViewBuilder
+    private func layerIndicator(for layer: Int) -> some View {
+        let layerName = ["Moments", "Connections", "Channels"][layer]
+        let layerColor = [Color.purple, Color.blue, Color.green][layer]
+        
+        HStack(spacing: 4) {
+            Circle()
+                .fill(layerColor.opacity(0.8))
+                .frame(width: 6, height: 6)
+            
+            Text(layerName)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundColor(.white.opacity(0.7))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .shadow(color: layerColor.opacity(0.3), radius: 8, y: 2)
+        )
     }
     
     // MARK: - 背景渐变
@@ -369,8 +412,8 @@ struct GestureNavigationContainer: View {
         let isVerticalGesture = abs(translation.height) > abs(translation.width)
         let isHorizontalGesture = abs(translation.width) > abs(translation.height)
         
-        // ✨ 垂直手势（仅在中央列，避免Explorer和Personal的重复视图问题）
-        if isVerticalGesture && translation.height > 20 && isScrolledToTop && horizontalIndex == 1 {
+        // ✨ 全方位垂直手势（所有列都支持）
+        if isVerticalGesture && translation.height > 20 && isScrolledToTop {
             let dampingFactor: CGFloat = 0.8
             let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5
             dragOffset = CGSize(width: 0, height: min(translation.height * dampingFactor, maxDrag))
@@ -394,8 +437,8 @@ struct GestureNavigationContainer: View {
         let isHorizontalGesture = abs(value.translation.width) > abs(value.translation.height)
         
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            // ✨ 垂直导航（仅中央列）
-            if isVerticalGesture && value.translation.height > threshold && isScrolledToTop && horizontalIndex == 1 {
+            // ✨ 全方位垂直导航
+            if isVerticalGesture && value.translation.height > threshold && isScrolledToTop {
                 // ✅ 顶部下拉 - 切换到下一行
                 lastTransitionDirection = .top
                 verticalIndex = (verticalIndex + 1) % 3
