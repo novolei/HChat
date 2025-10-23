@@ -66,7 +66,7 @@ struct QuotedMessageView: View {
         Button(action: { onTap?() }) {
             HStack(spacing: 8) {
                 Rectangle()
-                    .fill(Color.blue.opacity(0.6))
+                    .fill(Color.pink.opacity(0.6))
                     .frame(width: 3)
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -84,7 +84,7 @@ struct QuotedMessageView: View {
                 Spacer()
             }
             .padding(8)
-            .background(Color.blue.opacity(0.08))
+            .background(Color.gray.opacity(0.12))
             .cornerRadius(6)
         }
         .buttonStyle(.plain)

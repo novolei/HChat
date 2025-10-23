@@ -213,9 +213,7 @@ struct ReactionDetailView: View {
 // MARK: - 预览
 
 #Preview("快捷选择器") {
-    EmojiReactionPicker { emoji in
-        print("Selected: \(emoji)")
-    }
+    EmojiReactionPicker { _ in }
 }
 
 #Preview("反应气泡") {

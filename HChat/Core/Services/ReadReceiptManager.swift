@@ -65,28 +65,32 @@ final class ReadReceiptManager {
         guard userId != client?.myNick else { return }
         
         // 查找消息并添加已读回执
-        if let messageIndex = state.messagesByChannel[channel]?.firstIndex(where: { $0.id == messageId }) {
-            var message = state.messagesByChannel[channel]![messageIndex]
-            
-            // 检查是否已存在该用户的已读回执
-            guard !message.readReceipts.contains(where: { $0.userId == userId }) else { return }
-            
-            let receipt = ReadReceipt(
-                messageId: messageId,
-                userId: userId,
-                timestamp: Date(timeIntervalSince1970: timestamp)
-            )
-            message.readReceipts.append(receipt)
-            
-            // ✨ P1: 如果是自己发送的消息，更新状态为已读
-            if message.sender == client?.myNick {
-                message.status = .read
-            }
-            
-            state.messagesByChannel[channel]?[messageIndex] = message
-            
-            DebugLogger.log("✓ 收到已读回执: \(messageId) by \(userId)", level: .debug)
+        guard var messages = state.messagesByChannel[channel],
+              let messageIndex = messages.firstIndex(where: { $0.id == messageId }) else {
+            return
         }
+        
+        var message = messages[messageIndex]
+        
+        // 检查是否已存在该用户的已读回执
+        guard !message.readReceipts.contains(where: { $0.userId == userId }) else { return }
+        
+        let receipt = ReadReceipt(
+            messageId: messageId,
+            userId: userId,
+            timestamp: Date(timeIntervalSince1970: timestamp)
+        )
+        message.readReceipts.append(receipt)
+        
+        // ✨ P1: 如果是自己发送的消息，更新状态为已读
+        if message.sender == client?.myNick {
+            message.status = .read
+        }
+        
+        messages[messageIndex] = message
+        state.messagesByChannel[channel] = messages
+        
+        DebugLogger.log("✓ 收到已读回执: \(messageId.prefix(8)) by \(userId)", level: .debug)
     }
     
     /// 清理已发送的回执记录（可选，用于释放内存）

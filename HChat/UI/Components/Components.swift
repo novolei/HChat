@@ -11,263 +11,322 @@ import AVKit
 struct MessageRowView: View {
     let message: ChatMessage
     let myNick: String
-    let client: HackChatClient  // 添加 client 参数用于音频播放
-    var onReactionTap: ((String) -> Void)? = nil           // 点击反应
-    var onShowReactionPicker: (() -> Void)? = nil          // 显示反应选择器
-    var onShowReactionDetail: (() -> Void)? = nil          // 显示反应详情
-    var onReply: (() -> Void)? = nil                       // ✨ P1: 回复消息
-    var onJumpToReply: ((String) -> Void)? = nil           // ✨ P1: 跳转到被引用的消息
-    var onShowReadReceipts: (() -> Void)? = nil            // ✨ P1: 显示已读回执
+    let client: HackChatClient
+    var isHighlighted: Bool = false
+    var onLongPress: ((ChatMessage) -> Void)? = nil
+    var onShowReactionDetail: (() -> Void)? = nil
+    var onReply: (() -> Void)? = nil
+    var onJumpToReply: ((String) -> Void)? = nil
+    var onShowReadReceipts: (() -> Void)? = nil
     
-    @State private var showQuickActions = false
+    private var isMyMessage: Bool { message.sender == myNick }
+    private var isSystemMessage: Bool { message.sender == "system" }
     
-    // 是否是自己发送的消息
-    private var isMyMessage: Bool {
-        message.sender == myNick
-    }
-    
-    // 气泡背景样式（支持渐变）
-    @ViewBuilder
-    private var bubbleBackground: some View {
-        if message.sender == "system" {
-            HChatTheme.systemMessageBubble
-        } else if isMyMessage {
-            HChatTheme.myMessageBubble
-        } else {
-            HChatTheme.otherMessageBubble
-        }
-    }
-    
-    // 气泡文字颜色
-    private var bubbleTextColor: Color {
-        if message.sender == "system" {
-            return HChatTheme.secondaryText
-        }
-        return isMyMessage ? HChatTheme.myMessageText : HChatTheme.otherMessageText
-    }
-
     var body: some View {
-        ZStack {
-            // 背景遮罩（用于关闭快捷操作菜单）
-            if showQuickActions {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            showQuickActions = false
-                        }
-                    }
-                    .zIndex(0)
+        HStack(alignment: .top, spacing: 0) {
+            if isMyMessage && !isSystemMessage {
+                Spacer(minLength: 0)
             }
             
-        HStack(alignment: .top, spacing: 8) {
-            // 左边占位（自己的消息）
-            if isMyMessage {
-                Spacer(minLength: 60)
-            }
-            
-            // 消息气泡内容
-            VStack(alignment: isMyMessage ? .trailing : .leading, spacing: 6) {
-                // 发送者和时间（不是自己的消息才显示发送者）
-                if !isMyMessage || message.sender == "system" {
-                    HStack(spacing: 8) {
-                        Text(message.sender == "system" ? "•" : message.sender)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.secondary)
-                        
-                        // 时间戳和状态指示器
-                        MessageTimestampWithStatus(message: message, myNick: myNick)
-                    }
-                    .opacity(0.9)
-                } else {
-                    // 自己的消息：只显示时间和状态
-                    HStack(spacing: 8) {
-                        MessageTimestampWithStatus(message: message, myNick: myNick)
-                    }
-                    .opacity(0.9)
+            HStack(alignment: .top, spacing: 12) {
+                if !isMyMessage && !isSystemMessage {
+                    avatar
                 }
                 
-                // ✨ P1: 显示引用的消息
+                VStack(alignment: isMyMessage ? .trailing : .leading, spacing: 6) {
+                    metadataView
+                    
+                    bubbleWithReactions
+                        .frame(maxWidth: .infinity, alignment: isMyMessage ? .trailing : .leading)
+                }
+                .scaleEffect(isHighlighted ? 1.03 : 1.0)
+                .animation(.spring(response: 0.32, dampingFraction: 0.72), value: isHighlighted)
+                .overlay(highlightOverlay)
+                .background(anchorReporter)
+                .contentShape(Rectangle())
+                .gesture(
+                    LongPressGesture(minimumDuration: 0.35)
+                        .onEnded { _ in
+                            HapticManager.impact(style: .medium)
+                            onLongPress?(message)
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    onReply?()
+                }
+                
+                if isMyMessage && !isSystemMessage {
+                    avatar
+                }
+            }
+            
+            if !isMyMessage && !isSystemMessage {
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, ModernTheme.spacing4)
+        .padding(.vertical, 10)
+    }
+    
+    @ViewBuilder
+    private var metadataView: some View {
+        if !isSystemMessage && !isMyMessage {
+            HStack(spacing: 8) {
+                Text(message.sender)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(ModernTheme.secondaryText)
+            }
+            .padding(.horizontal, 6)
+            .opacity(0.9)
+        }
+    }
+    
+    @ViewBuilder
+    private var contentBubble: some View {
+        if message.replyTo != nil || !message.text.isEmpty || !message.attachments.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
                 if let reply = message.replyTo {
                     QuotedMessageView(reply: reply) {
                         onJumpToReply?(reply.messageId)
                     }
                 }
-
+                
                 if !message.text.isEmpty {
-                    RichText(message: message, myNick: myNick)
-                        .padding(.horizontal, HChatTheme.mediumSpacing)
-                        .padding(.vertical, HChatTheme.smallSpacing + 2)
+                    RichText(message: message, myNick: myNick, allowSelection: false)
                         .foregroundColor(bubbleTextColor)
-                        .background(
-                            bubbleBackground
-                                .clipShape(RoundedRectangle(cornerRadius: HChatTheme.largeCornerRadius, style: .continuous))
-                        )
-                        .shadow(color: isMyMessage ? HChatTheme.mediumShadow : HChatTheme.lightShadow, radius: 4, x: 0, y: 2)
-                }
-
-                ForEach(message.attachments) { a in
-                    AttachmentCard(attachment: a, client: client)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 
-                // ✨ P1: 表情反应气泡（显示在消息下方，对齐方式跟随消息）
-                if message.hasReactions {
-                    ReactionBubblesView(
-                        message: message,
-                        myNick: myNick,
-                        alignment: isMyMessage ? .trailing : .leading,
-                        onTapReaction: { emoji in
-                            onReactionTap?(emoji)
-                        },
-                        onShowMore: {
-                            onShowReactionPicker?()
-                        }
-                    )
-                }
+                attachmentsView
                 
-                // ✨ P1: 已读回执指示器
-                if message.hasReadReceipts && message.sender == myNick {
-                    Button {
-                        onShowReadReceipts?()
-                    } label: {
-                        ReadReceiptIndicator(message: message, showDetails: true)
-                    }
-                    .buttonStyle(.plain)
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    MessageTimestampWithStatus(message: message, myNick: myNick)
                 }
+                .padding(.top, 4)
             }
-            .overlay(alignment: .top) {
-                // iMessage 风格快捷操作菜单（显示在消息上方）
-                if showQuickActions {
-                    VStack(spacing: 8) {
-                        // Emoji reactions（上方）
-                        HStack(spacing: 8) {
-                            ForEach(QuickReactions.defaults.prefix(6), id: \.self) { emoji in
-                                Button {
-                                    onReactionTap?(emoji)
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                        showQuickActions = false
-                                    }
-                                    HapticManager.impact(style: .light)
-                                } label: {
-                                    Text(emoji)
-                                        .font(.system(size: 32))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            
-                            // "更多"按钮
-                            Button {
-                                onShowReactionPicker?()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    showQuickActions = false
-                                }
-                                HapticManager.impact(style: .light)
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 32))
-                                    .foregroundColor(ModernTheme.tertiaryText)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                                .shadow(color: Color.black.opacity(0.15), radius: 12, y: 4)
-                        )
-                        
-                        // 回复按钮（下方）
-                        Button {
-                            onReply?()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                showQuickActions = false
-                            }
-                            HapticManager.impact(style: .medium)
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "arrowshape.turn.up.left.fill")
-                                    .font(.system(size: 16, weight: .semibold))
-                                Text("回复")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(ModernTheme.accent)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: 240)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(.ultraThinMaterial)
-                                    .shadow(color: Color.black.opacity(0.15), radius: 12, y: 4)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .offset(y: -80)
-                    .transition(.scale.combined(with: .opacity))
-                }
-            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                bubbleBackground
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(Color.white.opacity(isMyMessage ? 0.18 : 0.1), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(isMyMessage ? 0.15 : 0.08), radius: 14, y: 6)
+            .frame(minWidth: 120, maxWidth: UIScreen.main.bounds.width * 0.75, alignment: .leading)
+        }
+    }
+    
+    private var bubbleWithReactions: some View {
+        ZStack(alignment: .bottomLeading) {
+            contentBubble
             
-            // 右边占位（别人的消息）
-            if !isMyMessage {
-                Spacer(minLength: 60)
+            if message.hasReactions {
+                ReactionBadgeView(
+                    message: message,
+                    myNick: myNick,
+                    alignTrailing: isMyMessage,
+                    onShowDetail: onShowReactionDetail
+                )
+                .offset(x: 18, y: 16)
             }
         }
-        .padding(.horizontal, ModernTheme.spacing4)
-        .padding(.vertical, 4)
-        .onLongPressGesture {
-            // 长按显示快捷操作菜单（iMessage 风格）
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                showQuickActions = true
-            }
-            HapticManager.impact(style: .medium)
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.bottom, message.hasReactions ? 24 : 0)
+    }
+    
+    @ViewBuilder
+    private var attachmentsView: some View {
+        ForEach(message.attachments) { attachment in
+            AttachmentCard(attachment: attachment, client: client)
         }
-        .zIndex(1)
+    }
+    
+    @ViewBuilder
+    private var reactionsView: some View {
+        EmptyView()
+    }
+    
+    @ViewBuilder
+    private var readReceiptsView: some View {
+        if message.hasReadReceipts && message.sender == myNick {
+            Button {
+                onShowReadReceipts?()
+            } label: {
+                ReadReceiptIndicator(message: message, showDetails: true)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    
+    @ViewBuilder
+    private var highlightOverlay: some View {
+        EmptyView()
+    }
+    
+    private var bubbleBackground: some View {
+        Group {
+            if isSystemMessage {
+                HChatTheme.systemMessageBubble
+            } else if isMyMessage {
+                HChatTheme.myMessageBubble
+            } else {
+                HChatTheme.otherMessageBubble
+            }
+        }
+    }
+    
+    private var bubbleTextColor: Color {
+        if isSystemMessage {
+            return HChatTheme.secondaryText
+        }
+        return isMyMessage ? HChatTheme.myMessageText : HChatTheme.otherMessageText
+    }
+    
+    private var avatar: some View {
+        VStack(spacing: 6) {
+            Circle()
+                .fill(Color.white)
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "7158FF"), Color(hex: "FF8DC7")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .padding(4)
+                        .overlay(
+                            Text(message.sender.prefix(1).uppercased())
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.12), radius: 8, y: 6)
+        }
+    }
+    
+    private var anchorReporter: some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: MessageFramePreferenceKey.self,
+                value: [
+                    message.id: MessageAnchorInfo(
+                        frameInScroll: geo.frame(in: .named("chatScroll")),
+                        globalFrame: geo.frame(in: .global),
+                        isMine: isMyMessage
+                    )
+                ]
+            )
         }
     }
 }
 
-import SwiftUI
+struct ReactionBadgeView: View {
+    let message: ChatMessage
+    let myNick: String
+    let alignTrailing: Bool
+    let onShowDetail: (() -> Void)?
+    
+    private let maxDisplayCount = 8
+    
+    var body: some View {
+        let allSummaries = message.reactionSummaries
+        let displayedSummaries = Array(allSummaries.prefix(maxDisplayCount))
+        let hasMore = allSummaries.count > maxDisplayCount
+        
+        guard !displayedSummaries.isEmpty else { return AnyView(EmptyView()) }
+        
+        let badge = Button {
+            onShowDetail?()
+        } label: {
+            HStack(spacing: 6) {
+                ForEach(displayedSummaries, id: \.emoji) { summary in
+                    HStack(spacing: 3) {
+                        Text(summary.emoji)
+                            .font(.system(size: 16))
+                        
+                        if summary.count > 1 {
+                            Text("\(summary.count)")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                    }
+                }
+                
+                if hasMore {
+                    Text("...")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color.white.opacity(0.9))
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(LinearGradient(
+                        colors: [Color(hex: "5B36FF"), Color(hex: "FF6CCB")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+            )
+            .foregroundColor(.white)
+            .shadow(color: Color.black.opacity(0.14), radius: 10, y: 6)
+        }
+            .buttonStyle(.plain)
+        
+        return AnyView(badge)
+    }
+}
 
 struct RichText: View {
     let message: ChatMessage
     let myNick: String
-
+    var allowSelection: Bool = true
+    
     var body: some View {
-        Text(buildAttributed())
-            .textSelection(.enabled)
+        let text = Text(buildAttributed())
+        if allowSelection {
+            text.textSelection(.enabled)
+        } else {
+            text
+        }
     }
-
+    
     private func buildAttributed() -> AttributedString {
         var attr = AttributedString()
         let frags = MessageRenderer.splitToFragments(message.text)
-
+        
         for f in frags {
             switch f {
-            case .text(let s):
-                attr += AttributedString(s)
-
-            case .inlineCode(let s):
-                var a = AttributedString(s)
-                // 用等宽并标记为 code（系统样式）
-                a.inlinePresentationIntent = .code
-                attr += a
-
-            case .codeBlock(let s):
-                // 简单处理：前后加换行并标记为 code
-                var a = AttributedString("\n\(s)\n")
-                a.inlinePresentationIntent = .code
-                attr += a
-
-            case .link(let u):
-                var a = AttributedString(u.absoluteString)
-                a.link = u
-                attr += a
-
-            case .mention(let m):
-                var a = AttributedString(m)
-                a.foregroundColor = (m == "@\(myNick)") ? .orange : .blue
-                attr += a
+                case .text(let s):
+                    attr += AttributedString(s)
+                    
+                case .inlineCode(let s):
+                    var a = AttributedString(s)
+                    // 用等宽并标记为 code（系统样式）
+                    a.inlinePresentationIntent = .code
+                    attr += a
+                    
+                case .codeBlock(let s):
+                    // 简单处理：前后加换行并标记为 code
+                    var a = AttributedString("\n\(s)\n")
+                    a.inlinePresentationIntent = .code
+                    attr += a
+                    
+                case .link(let u):
+                    var a = AttributedString(u.absoluteString)
+                    a.link = u
+                    attr += a
+                    
+                case .mention(let m):
+                    var a = AttributedString(m)
+                    a.foregroundColor = (m == "@\(myNick)") ? .orange : .blue
+                    attr += a
             }
         }
         return attr
@@ -284,14 +343,14 @@ struct AttachmentCard: View {
     var body: some View {
         Group {
             switch attachment.kind {
-            case .image:
-                ImageAttachmentView(attachment: attachment)
-            case .video:
-                VideoAttachmentView(attachment: attachment)
-            case .audio:
-                AudioAttachmentView(attachment: attachment, client: client)
-            case .file:
-                FileAttachmentView(attachment: attachment)
+                case .image:
+                    ImageAttachmentView(attachment: attachment)
+                case .video:
+                    VideoAttachmentView(attachment: attachment)
+                case .audio:
+                    AudioAttachmentView(attachment: attachment, client: client)
+                case .file:
+                    FileAttachmentView(attachment: attachment)
             }
         }
     }
@@ -306,40 +365,40 @@ struct ImageAttachmentView: View {
         if let url = attachment.getUrl {
             AsyncImage(url: url) { phase in
                 switch phase {
-                case .empty:
-                    ZStack {
-                        RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
-                            .fill(HChatTheme.tertiaryBackground)
-                        ProgressView()
-                            .tint(HChatTheme.accent)
-                    }
-                    .frame(height: 200)
-                    
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous))
-                        .shadow(color: HChatTheme.lightShadow, radius: 4, x: 0, y: 2)
-                    
-                case .failure:
-                    ZStack {
-                        RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
-                            .fill(HChatTheme.error.opacity(0.1))
-                            .frame(height: 120)
-                        
-                        VStack(spacing: HChatTheme.smallSpacing) {
-                            Image(systemName: "photo.badge.exclamationmark")
-                                .font(.largeTitle)
-                                .foregroundColor(HChatTheme.error)
-                            Text("图片加载失败")
-                                .font(HChatTheme.captionFont)
-                                .foregroundColor(HChatTheme.secondaryText)
+                    case .empty:
+                        ZStack {
+                            RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                                .fill(HChatTheme.tertiaryBackground)
+                            ProgressView()
+                                .tint(HChatTheme.accent)
                         }
-                    }
-                    
-                @unknown default:
-                    EmptyView()
+                        .frame(height: 200)
+                        
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous))
+                            .shadow(color: HChatTheme.lightShadow, radius: 4, x: 0, y: 2)
+                        
+                    case .failure:
+                        ZStack {
+                            RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                                .fill(HChatTheme.error.opacity(0.1))
+                                .frame(height: 120)
+                            
+                            VStack(spacing: HChatTheme.smallSpacing) {
+                                Image(systemName: "photo.badge.exclamationmark")
+                                    .font(.largeTitle)
+                                    .foregroundColor(HChatTheme.error)
+                                Text("图片加载失败")
+                                    .font(HChatTheme.captionFont)
+                                    .foregroundColor(HChatTheme.secondaryText)
+                            }
+                        }
+                        
+                    @unknown default:
+                        EmptyView()
                 }
             }
             .frame(maxHeight: 300)
@@ -385,6 +444,10 @@ struct AudioAttachmentView: View {
     }
     
     private var duration: TimeInterval {
+        // 优先使用附件中嵌入的时长（发送时已计算好）
+        if let embeddedDuration = attachment.duration, embeddedDuration > 0 {
+            return embeddedDuration
+        }
         // 如果是当前播放的音频，使用 audioManager 的时长
         if audioManager.currentPlayingId == audioId && audioManager.duration > 0 {
             return audioManager.duration
@@ -398,7 +461,7 @@ struct AudioAttachmentView: View {
             isPlaying: isPlaying,
             currentTime: currentTime,
             duration: duration,
-            waveformData: generateWaveform(),
+            waveformData: attachment.waveform ?? generateWaveform(), // 优先使用嵌入的波形数据
             onPlay: {
                 Task {
                     await togglePlayback()
@@ -461,11 +524,11 @@ struct FileAttachmentView: View {
     private var fileIcon: String {
         let ext = (attachment.filename as NSString).pathExtension.lowercased()
         switch ext {
-        case "pdf": return "doc.fill"
-        case "doc", "docx": return "doc.text.fill"
-        case "xls", "xlsx": return "tablecells.fill"
-        case "zip", "rar", "7z": return "doc.zipper"
-        default: return "doc.fill"
+            case "pdf": return "doc.fill"
+            case "doc", "docx": return "doc.text.fill"
+            case "xls", "xlsx": return "tablecells.fill"
+            case "zip", "rar", "7z": return "doc.zipper"
+            default: return "doc.fill"
         }
     }
     

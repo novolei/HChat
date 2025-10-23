@@ -190,7 +190,6 @@ final class HackChatClient {
         let msgId = UUID().uuidString
         state.markMessageAsSent(id: msgId)
         
-        // 创建附件消息
         let message = ChatMessage(
             id: msgId,
             channel: state.currentChannel,
@@ -200,10 +199,11 @@ final class HackChatClient {
             isLocalEcho: true
         )
         
-        DebugLogger.log("📎 附件消息加入队列 - ID: \(msgId), file: \(attachment.filename)", level: .debug)
+        DebugLogger.log("📎 附件消息加入队列 - ID: \(msgId), file: \(attachment.filename), kind: \(attachment.kind), duration: \(attachment.duration ?? 0)", level: .debug)
         
         // 立即显示在界面
         state.appendMessage(message)
+        DebugLogger.log("✅ 附件消息已添加到状态 - 当前频道消息数: \(state.messagesByChannel[state.currentChannel]?.count ?? 0)", level: .debug)
         
         // 通过队列发送
         Task {

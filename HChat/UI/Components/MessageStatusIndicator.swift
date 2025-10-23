@@ -66,16 +66,27 @@ struct MessageStatusIndicator: View {
 struct MessageTimestampWithStatus: View {
     let message: ChatMessage
     let myNick: String
-    
+
     var body: some View {
         HStack(spacing: 4) {
             Text(message.timestamp, style: .time)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            
-            // 状态指示器
-            MessageStatusIndicator(message: message, myNick: myNick)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(timestampColor)
+
+            if message.sender == myNick {
+                Image(systemName: message.status.icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(statusColor)
+            }
         }
+    }
+
+    private var timestampColor: Color {
+        message.sender == myNick ? HChatTheme.myMessageText.opacity(0.7) : HChatTheme.tertiaryText.opacity(0.8)
+    }
+
+    private var statusColor: Color {
+        message.sender == myNick ? HChatTheme.myMessageText.opacity(0.7) : HChatTheme.tertiaryText.opacity(0.8)
     }
 }
 

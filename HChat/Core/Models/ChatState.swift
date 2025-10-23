@@ -100,6 +100,27 @@ final class ChatState {
         messagesByChannel[currentChannel] = []
     }
     
+    /// 更新频道中的指定消息
+    /// 这个方法确保触发 @Observable 的变更检测
+    func updateMessage(in channel: String, messageId: String, updateBlock: (inout ChatMessage) -> Void) {
+        var messages = messagesByChannel[channel] ?? []
+        guard let index = messages.firstIndex(where: { $0.id == messageId }) else {
+            DebugLogger.log("⚠️ updateMessage - 消息未找到: \(messageId.prefix(8)) in channel: \(channel)", level: .warning)
+            return
+        }
+        
+        let before = messages[index].reactions.count
+        updateBlock(&messages[index])
+        let after = messages[index].reactions.count
+        
+        // 🔥 关键：创建全新字典以强制触发 @Observable
+        var newDict = messagesByChannel
+        newDict[channel] = messages
+        messagesByChannel = newDict
+        
+        DebugLogger.log("🔄 updateMessage - messageId: \(messageId.prefix(8)), reactions: \(before) → \(after), dict updated", level: .info)
+    }
+    
     /// 添加系统消息
     func systemMessage(_ text: String) {
         appendMessage(ChatMessage(channel: currentChannel, sender: "system", text: text))

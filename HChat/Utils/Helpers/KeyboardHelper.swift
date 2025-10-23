@@ -11,25 +11,8 @@ import SwiftUI
 // MARK: - ⌨️ 键盘管理器
 
 enum KeyboardHelper {
-    private static var isKeyboardVisible = false
-    private static let configureOnce: Void = {
-        let center = NotificationCenter.default
-        center.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { _ in
-            isKeyboardVisible = true
-        }
-        center.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
-            isKeyboardVisible = false
-        }
-    }()
-    
-    static func ensureConfigured() {
-        _ = configureOnce
-    }
-    
-    /// 隐藏键盘（force=true 时无视当前显示状态）
-    static func hideKeyboard(force: Bool = false) {
-        ensureConfigured()
-        guard force || isKeyboardVisible else { return }
+    /// 主动隐藏键盘（无条件）
+    static func hideKeyboard() {
         DispatchQueue.main.async {
             UIApplication.shared.sendAction(
                 #selector(UIResponder.resignFirstResponder),
@@ -38,11 +21,6 @@ enum KeyboardHelper {
                 for: nil
             )
         }
-    }
-    
-    /// 强制隐藏键盘
-    static func forceHideKeyboard() {
-        hideKeyboard(force: true)
     }
 }
 
@@ -58,10 +36,7 @@ private struct KeyboardDismissOverlay: UIViewRepresentable {
     
     var options: Options
     
-    init(options: Options) {
-        self.options = options
-        KeyboardHelper.ensureConfigured()
-    }
+    init(options: Options) { self.options = options }
     
     func makeCoordinator() -> Coordinator {
         Coordinator(options: options)
@@ -202,7 +177,12 @@ extension View {
     func hideKeyboardOnDrag() -> some View {
         background(KeyboardDismissOverlay(options: [.drag]))
     }
-    
+
+    /// 点击或拖动任意区域时均隐藏键盘
+    func hideKeyboardOnTapAndDrag() -> some View {
+        background(KeyboardDismissOverlay(options: .all))
+    }
+
     /// 点击或拖动均可隐藏键盘（推荐，iOS 16+ 仅保留点击以获得原生滚动动画）
     @ViewBuilder
     func interactiveDismissKeyboard() -> some View {

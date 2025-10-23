@@ -73,23 +73,22 @@ struct ChatView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // 连接状态提示条
                     ConnectionStatusBanner(
                         status: client.connectionStatus,
                         onReconnect: {
                             client.reconnect()
                         }
                     )
-                    
+
                     header
                         .padding(.horizontal, ModernTheme.spacing4)
                         .padding(.top, ModernTheme.spacing2)
                         .padding(.bottom, ModernTheme.spacing2)
-                    
+
                     ChatMessageListView(client: client, searchText: $searchText)
                         .padding(.bottom, ModernTheme.spacing4)
                         .transition(.opacity)
-                    
+
                     ChatInputView(
                         client: client,
                         inputText: $inputText,
@@ -98,15 +97,21 @@ struct ChatView: View {
                     )
                 }
             }
+            .contentShape(Rectangle())
+            .hideKeyboardOnTapAndDrag()
             .navigationBarHidden(true)
             .toast($wallpaperToast)
             .sheet(isPresented: $showCallSheet) {
-                #if canImport(LiveKit)
-                CallView(roomName: client.currentChannel, identity: client.myNick)
-                    .presentationDetents([.medium])
-                #else
-                Text("未集成 LiveKit")
-                #endif
+                VStack(spacing: 20) {
+                    Image(systemName: "phone.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(HChatTheme.accent)
+                    Text("语音通话功能开发中...")
+                        .font(HChatTheme.bodyFont)
+                        .foregroundColor(HChatTheme.secondaryText)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .presentationDetents([.medium])
             }
             .sheet(isPresented: $showStatusPicker) {
                 StatusPickerView(
@@ -243,7 +248,7 @@ struct ChatView: View {
                     let att = try await uploader.prepareImageAttachment(data, filename: "image.png")
                     client.sendAttachment(att)
                 } catch {
-                    print("upload error:", error.localizedDescription)
+                    DebugLogger.log("❌ 附件上传失败: \(error.localizedDescription)", level: .error)
                 }
             }
         }

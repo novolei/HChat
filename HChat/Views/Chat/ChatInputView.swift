@@ -19,6 +19,7 @@ struct ChatInputView: View {
     @State private var isRecordingVoice = false
     @State private var audioRecorder = AudioRecorderManager()
     @State private var voicePreview: (url: URL, duration: TimeInterval, waveform: [CGFloat])? = nil
+    @State private var keepKeyboardForPreview = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -33,95 +34,39 @@ struct ChatInputView: View {
                 .transition(.opacity)
             }
             
-            // 语音预览或输入区域
-            if let preview = voicePreview {
-            // 显示语音消息预览
-            VoiceMessagePreview(
-                duration: preview.duration,
-                waveformData: preview.waveform,
-                audioURL: preview.url,  // 传递音频文件路径用于试听
-                onSend: {
-                    sendVoiceMessage()
-                },
-                onCancel: {
-                    cancelVoicePreview()
-                }
-            )
-                .padding(.horizontal, ModernTheme.spacing5)
-                .padding(.vertical, ModernTheme.spacing3)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .onAppear {
-                    DebugLogger.log("👀 VoiceMessagePreview 已显示", level: .info)
-                }
-            } else {
-                // 正常输入区域
-                HStack(alignment: .bottom, spacing: HChatTheme.mediumSpacing) {
-                    // 附件按钮
-                    Button {
-                        onAttachment()
-                        HapticManager.impact(style: .light)
-                    } label: {
-                        Image(systemName: "paperclip")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundStyle(.white)
-                            .padding(12)
-                            .background(
-                                Circle()
-                                    .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                
-                // 输入框
-                TextField("输入消息...", text: $inputText, axis: .vertical)
-                    .lineLimit(1...6)
-                    .font(HChatTheme.bodyFont)
-                    .focused($isInputFocused)
-                    .onChange(of: inputText) { _, newValue in
-                        handleTypingChange(newValue)
-                    }
-                    .onSubmit {
-                        if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            onSend()
+            // 语音预览与输入区域叠加
+            ZStack {
+                inputArea
+                    .opacity(voicePreview == nil ? 1 : 0)
+                    .allowsHitTesting(voicePreview == nil)
+
+                if let preview = voicePreview {
+                    VoiceMessagePreview(
+                        duration: preview.duration,
+                        waveformData: preview.waveform,
+                        audioURL: preview.url,
+                        onSend: {
+                            sendVoiceMessage()
+                        },
+                        onCancel: {
+                            cancelVoicePreview()
+                        }
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onAppear {
+                        DebugLogger.log("👀 VoiceMessagePreview 已显示", level: .info)
+                        DispatchQueue.main.async {
+                            if keepKeyboardForPreview {
+                                isInputFocused = true
+                            } else {
+                                isInputFocused = false
+                            }
                         }
                     }
-                    .padding(.horizontal, HChatTheme.mediumSpacing)
-                    .padding(.vertical, HChatTheme.mediumSpacing)
-                    .background(
-                        RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
-                            .stroke(LinearGradient(colors: [ModernTheme.accent.opacity(isInputFocused ? 0.6 : 0.2), ModernTheme.secondaryAccent.opacity(isInputFocused ? 0.6 : 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.2)
-                    )
-                
-                // 发送/语音按钮
-                if inputText.isEmpty {
-                    // 语音录制按钮
-                    voiceButton
-                } else {
-                    // 发送按钮
-                    Button {
-                        onSend()
-                        HapticManager.impact(style: .medium)
-                    } label: {
-                        Image(systemName: "paperplane.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(12)
-                            .background(
-                                Circle()
-                                    .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
                 }
-                }
-                .padding(.horizontal, ModernTheme.spacing5)
-                .padding(.vertical, ModernTheme.spacing3)
             }
+            .padding(.horizontal, ModernTheme.spacing5)
+            .padding(.vertical, ModernTheme.spacing3)
         }
         .animation(HChatTheme.standardAnimation, value: client.replyManager.replyingTo != nil)
         .animation(HChatTheme.quickAnimation, value: inputText.isEmpty)
@@ -222,6 +167,7 @@ struct ChatInputView: View {
         DebugLogger.log("📊 波形数据: \(waveform.count) 个采样点", level: .info)
         
         // 显示预览
+        keepKeyboardForPreview = isInputFocused
         voicePreview = (url: url, duration: duration, waveform: waveform)
         DebugLogger.log("✅ 语音预览已设置", level: .info)
     }
@@ -237,8 +183,14 @@ struct ChatInputView: View {
                 
                 // 发送语音消息到聊天
                 await MainActor.run {
-                    client.sendAttachment(attachment)
+                    var enriched = attachment
+                    enriched.duration = preview.duration
+                    enriched.waveform = preview.waveform
+                    DebugLogger.log("📤 准备发送语音附件 - duration: \(preview.duration)s, waveform: \(preview.waveform.count) samples", level: .info)
+                    client.sendAttachment(enriched)
+                    DebugLogger.log("✅ 语音消息已发送到 client", level: .info)
                     voicePreview = nil // 清除预览
+                    keepKeyboardForPreview = false
                 }
             } catch {
                 DebugLogger.log("❌ 语音文件上传失败: \(error.localizedDescription)", level: .error)
@@ -252,6 +204,7 @@ struct ChatInputView: View {
             try? FileManager.default.removeItem(at: preview.url)
         }
         voicePreview = nil
+        keepKeyboardForPreview = false
         HapticManager.impact(style: .light)
     }
     
@@ -297,6 +250,80 @@ enum HapticManager {
     static func selection() {
         let generator = UISelectionFeedbackGenerator()
         generator.selectionChanged()
+    }
+}
+
+private extension ChatInputView {
+    var inputArea: some View {
+        HStack(alignment: .bottom, spacing: HChatTheme.mediumSpacing) {
+            Button {
+                onAttachment()
+                HapticManager.impact(style: .light)
+            } label: {
+                Image(systemName: "paperclip")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(.white)
+                    .padding(12)
+                    .background(
+                        Circle()
+                            .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    )
+            }
+            .buttonStyle(.plain)
+
+            TextField("输入消息...", text: $inputText, axis: .vertical)
+                .lineLimit(1...6)
+                .font(HChatTheme.bodyFont)
+                .focused($isInputFocused)
+                .onChange(of: inputText) { _, newValue in
+                    handleTypingChange(newValue)
+                }
+                .onSubmit {
+                    if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        onSend()
+                    }
+                }
+                .padding(.horizontal, HChatTheme.mediumSpacing)
+                .padding(.vertical, HChatTheme.mediumSpacing)
+                .background(
+                    RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: ModernTheme.extraLargeRadius, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    ModernTheme.accent.opacity(isInputFocused ? 0.6 : 0.2),
+                                    ModernTheme.secondaryAccent.opacity(isInputFocused ? 0.6 : 0.2)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.2
+                        )
+                )
+
+            if inputText.isEmpty {
+                voiceButton
+            } else {
+                Button {
+                    onSend()
+                    HapticManager.impact(style: .medium)
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(LinearGradient(colors: [ModernTheme.accent, ModernTheme.secondaryAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
+                }
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
     }
 }
 

@@ -27,28 +27,20 @@ struct ChatMessageListView: View {
     
     @FocusState private var isSearchFocused: Bool
     
-    // 缓存过滤结果以提升性能
+    // 计算过滤后的消息
     private var filteredMessages: [ChatMessage] {
         let channel = client.currentChannel
         let messages = client.messagesByChannel[channel] ?? []
         
-        guard !searchText.isEmpty else { return messages }
-        
-        let query = searchText.lowercased()
-        return messages.filter { msg in
-            msg.text.lowercased().contains(query) || 
-            msg.sender.lowercased().contains(query)
+        if searchText.isEmpty {
+            return messages
+        } else {
+            let query = searchText.lowercased()
+            return messages.filter { msg in
+                msg.text.lowercased().contains(query) || 
+                msg.sender.lowercased().contains(query)
+            }
         }
-    }
-    
-    // 监听最后一条消息的 reaction 和已读回执变化
-    private var lastMessageHash: Int {
-        guard let lastMsg = filteredMessages.last else { return 0 }
-        var hasher = Hasher()
-        hasher.combine(lastMsg.id)
-        hasher.combine(lastMsg.reactions.count)
-        hasher.combine(lastMsg.readReceipts.count)
-        return hasher.finalize()
     }
     
     // 正在输入的用户列表
@@ -58,147 +50,19 @@ struct ChatMessageListView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 搜索/过滤（现代化设计）
-            HStack(spacing: HChatTheme.mediumSpacing) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(isSearchFocused ? HChatTheme.accent : HChatTheme.tertiaryText)
-                    .font(.system(size: 16))
-                
-                TextField("搜索消息或用户", text: $searchText)
-                    .font(HChatTheme.bodyFont)
-                    .focused($isSearchFocused)
-                
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                        HapticManager.impact(style: .light)
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(HChatTheme.tertiaryText)
-                    }
-                    .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .padding(.horizontal, HChatTheme.mediumSpacing)
-            .padding(.vertical, HChatTheme.smallSpacing)
-            .background(
-                RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
-                    .fill(HChatTheme.tertiaryBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
-                    .stroke(isSearchFocused ? HChatTheme.accent.opacity(0.3) : HChatTheme.border, lineWidth: 1)
-            )
-            .padding(.horizontal, ModernTheme.spacing4)
-            .padding(.top, ModernTheme.spacing1)
-            .padding(.bottom, ModernTheme.spacing2)
-            .animation(HChatTheme.quickAnimation, value: isSearchFocused)
-            .animation(HChatTheme.quickAnimation, value: searchText.isEmpty)
-            
-            // 消息列表（优化性能：使用 ScrollView + LazyVStack 替代 List）
-            ScrollViewReader { proxy in
-                VStack(spacing: 0) {
-                if filteredMessages.isEmpty {
-                    // 空状态视图
-                    EmptyChatStateView(
-                        isSearching: !searchText.isEmpty,
-                        channelName: client.currentChannel
-                    )
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(filteredMessages, id: \.id) { m in
-                                MessageRowView(
-                                    message: m,
-                                    myNick: client.myNick,
-                                    client: client,  // 传递 client 用于音频播放
-                                    onReactionTap: { emoji in
-                                        handleReactionTap(emoji: emoji, message: m)
-                                    },
-                                    onShowReactionPicker: {
-                                        selectedMessage = m
-                                        showFullPicker = true
-                                    },
-                                    onShowReactionDetail: {
-                                        selectedMessage = m
-                                        showReactionDetail = true
-                                    },
-                                    onReply: {
-                                        // ✨ P1: 设置回复目标
-                                        client.replyManager.setReplyTarget(m)
-                                    },
-                                    onJumpToReply: { messageId in
-                                        // ✨ P1: 跳转到被引用的消息
-                                        withAnimation {
-                                            proxy.scrollTo(messageId, anchor: .center)
-                                        }
-                                    },
-                                    onShowReadReceipts: {
-                                        selectedMessage = m
-                                        showReadReceiptDetail = true
-                                    }
-                                )
-                                .id(m.id)
-                                .onAppear {
-                                    // ✨ 优化：只标记一次已读，避免重复触发
-                                    if m.sender != client.myNick && !hasMarkedRead.contains(m.id) {
-                                        hasMarkedRead.insert(m.id)
-                                        client.readReceiptManager.markAsRead(messageId: m.id, channel: m.channel)
-                                    }
-                                }
-                            }
-                            
-                            // ✨ 底部锚点，确保滚动时完整显示最后一条消息（包括 reaction 和已读回执）
-                            Color.clear
-                                .frame(height: 1)
-                                .id("bottom_anchor")
-                        }
-                    }
-                    .scrollDismissesKeyboardIfAvailable()
-                    .onChange(of: filteredMessages.count) { oldCount, newCount in
-                        // 当有新消息时自动滚动到底部，使用延迟确保 reaction 和已读回执已渲染
-                        if shouldAutoScroll, newCount > oldCount {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                withAnimation(.easeOut(duration: 0.3)) {
-                                    proxy.scrollTo("bottom_anchor", anchor: .bottom)
-                                }
-                            }
-                        }
-                    }
-                    .onChange(of: lastMessageHash) { _, _ in
-                        // 当最后一条消息的 reaction 或已读回执更新时，确保完整显示
-                        if shouldAutoScroll {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    proxy.scrollTo("bottom_anchor", anchor: .bottom)
-                                }
-                            }
-                        }
-                    }
-                    .onAppear {
-                        // 初次加载时滚动到底部
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            proxy.scrollTo("bottom_anchor", anchor: .bottom)
-                        }
-                    }
-                }
-                
-                // 正在输入指示器
-                if !typingUsers.isEmpty {
-                    TypingIndicatorView(typingUsers: typingUsers)
-                        .padding(.horizontal, ModernTheme.spacing4)
-                        .padding(.top, ModernTheme.spacing2)
-                        .padding(.bottom, ModernTheme.spacing1)
-                }
-                }
-            }
+            searchBarView
+            messageListSection
         }
         .interactiveDismissKeyboard()
         .toast($toastMessage)
         .sheet(isPresented: $showFullPicker) {
             if let message = selectedMessage {
                 FullEmojiReactionPicker { emoji in
-                    handleReactionTap(emoji: emoji, message: message)
+                    client.reactionManager.toggleReaction(
+                        emoji: emoji,
+                        messageId: message.id,
+                        channel: message.channel
+                    )
                 }
             }
         }
@@ -207,30 +71,212 @@ struct ChatMessageListView: View {
                 ReactionDetailView(message: message)
             }
         }
-        .sheet(isPresented: $showReadReceiptDetail) { // ✨ P1: 已读回执详情
+        .sheet(isPresented: $showReadReceiptDetail) {
             if let message = selectedMessage {
                 ReadReceiptDetailView(message: message)
             }
         }
     }
     
+    // MARK: - Subviews
     
-    // ✨ P1: 处理反应点击
-    private func handleReactionTap(emoji: String, message: ChatMessage) {
-        client.reactionManager.toggleReaction(
-            emoji: emoji,
-            messageId: message.id,
-            channel: message.channel
+    @ViewBuilder
+    private var searchBarView: some View {
+        HStack(spacing: HChatTheme.mediumSpacing) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(isSearchFocused ? HChatTheme.accent : HChatTheme.tertiaryText)
+                .font(.system(size: 16))
+            
+            TextField("搜索消息或用户", text: $searchText)
+                .font(HChatTheme.bodyFont)
+                .focused($isSearchFocused)
+            
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    HapticManager.impact(style: .light)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(HChatTheme.tertiaryText)
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding(.horizontal, HChatTheme.mediumSpacing)
+        .padding(.vertical, HChatTheme.smallSpacing)
+        .background(
+            RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                .fill(HChatTheme.tertiaryBackground)
         )
-        
-        // 如果不是最近的消息，显示 Toast 提示
-        let isRecentMessage = filteredMessages.suffix(5).contains(where: { $0.id == message.id })
-        if !isRecentMessage {
-            toastMessage = ToastMessage(
-                text: "已对 \(message.sender) 的消息添加反应 \(emoji)",
-                icon: "hand.thumbsup.fill",
-                duration: 2.0
+        .overlay(
+            RoundedRectangle(cornerRadius: HChatTheme.mediumCornerRadius, style: .continuous)
+                .stroke(isSearchFocused ? HChatTheme.accent.opacity(0.3) : HChatTheme.border, lineWidth: 1)
+        )
+        .padding(.horizontal, ModernTheme.spacing4)
+        .padding(.top, ModernTheme.spacing1)
+        .padding(.bottom, ModernTheme.spacing2)
+        .animation(HChatTheme.quickAnimation, value: isSearchFocused)
+        .animation(HChatTheme.quickAnimation, value: searchText.isEmpty)
+    }
+    
+    @ViewBuilder
+    private var messageListSection: some View {
+        ScrollViewReader { proxy in
+            MessageOverlayContainer(client: client, onShowFullPicker: { message in
+                selectedMessage = message
+                showFullPicker = true
+            }) { overlayState in
+                MessageListContent(
+                    filteredMessages: filteredMessages,
+                    typingUsers: typingUsers,
+                    client: client,
+                    shouldAutoScroll: shouldAutoScroll,
+                    hasMarkedRead: $hasMarkedRead,
+                    selectedMessage: $selectedMessage,
+                    showFullPicker: $showFullPicker,
+                    showReactionDetail: $showReactionDetail,
+                    showReadReceiptDetail: $showReadReceiptDetail,
+                    overlayState: overlayState,
+                    proxy: proxy
+                )
+            }
+        }
+    }
+    
+}
+
+// MARK: - Nested Content Builders
+
+private struct MessageListContent: View {
+    let filteredMessages: [ChatMessage]
+    let typingUsers: [String]
+    let client: HackChatClient
+    let shouldAutoScroll: Bool
+    @Binding var hasMarkedRead: Set<String>
+    @Binding var selectedMessage: ChatMessage?
+    @Binding var showFullPicker: Bool
+    @Binding var showReactionDetail: Bool
+    @Binding var showReadReceiptDetail: Bool
+    let overlayState: MessageOverlayState
+    let proxy: ScrollViewProxy
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            contentList
+            typingIndicator
+        }
+    }
+    
+    @ViewBuilder
+    private var contentList: some View {
+        if filteredMessages.isEmpty {
+            EmptyChatStateView(
+                isSearching: !searchTextActive,
+                channelName: client.currentChannel
             )
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(filteredMessages) { message in
+                        row(for: message)
+                    }
+
+                    Color.clear
+                        .frame(height: 1)
+                        .id("bottom_anchor")
+                }
+            }
+            .coordinateSpace(name: "chatScroll")
+            .background(scrollFrameReporter)
+            .onPreferenceChange(MessageFramePreferenceKey.self) { overlayState.updateAnchors($0) }
+            .onPreferenceChange(ScrollViewFramePreferenceKey.self) { overlayState.updateScrollFrame($0) }
+            .scrollDismissesKeyboardIfAvailable()
+            .onChange(of: filteredMessages.count) { oldCount, newCount in
+                guard shouldAutoScroll, newCount > oldCount else { return }
+                scrollToBottom(animatedDuration: 0.3)
+            }
+            .onAppear {
+                scrollToBottom(animatedDuration: 0.0, delay: 0.1)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var typingIndicator: some View {
+        if !typingUsers.isEmpty {
+            TypingIndicatorView(typingUsers: typingUsers)
+                .padding(.horizontal, ModernTheme.spacing4)
+                .padding(.top, ModernTheme.spacing2)
+                .padding(.bottom, ModernTheme.spacing1)
+        }
+    }
+    
+    private var searchTextActive: Bool { filteredMessages.isEmpty == false }
+    
+    @ViewBuilder
+    private var scrollFrameReporter: some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: ScrollViewFramePreferenceKey.self,
+                value: geo.frame(in: .global)
+            )
+        }
+    }
+    
+    private func row(for message: ChatMessage) -> some View {
+        MessageRowView(
+            message: message,
+            myNick: client.myNick,
+            client: client,
+            isHighlighted: overlayState.highlightedMessageID == message.id,
+            onLongPress: { overlayState.presentOverlay(for: $0.id) },
+            onShowReactionDetail: {
+                selectedMessage = message
+                showReactionDetail = true
+            },
+            onReply: {
+                client.replyManager.setReplyTarget(message)
+            },
+            onJumpToReply: { messageId in
+                withAnimation {
+                    proxy.scrollTo(messageId, anchor: .center)
+                }
+            },
+            onShowReadReceipts: {
+                selectedMessage = message
+                showReadReceiptDetail = true
+            }
+        )
+        .id(message.id)
+        .background(rowGeometryReporter(for: message))
+        .onAppear {
+            if message.sender != client.myNick && !hasMarkedRead.contains(message.id) {
+                hasMarkedRead.insert(message.id)
+                client.readReceiptManager.markAsRead(messageId: message.id, channel: message.channel)
+            }
+        }
+    }
+    
+    private func rowGeometryReporter(for message: ChatMessage) -> some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: MessageFramePreferenceKey.self,
+                value: [
+                    message.id: MessageAnchorInfo(
+                        frameInScroll: geo.frame(in: .named("chatScroll")),
+                        globalFrame: geo.frame(in: .global),
+                        isMine: message.sender == client.myNick
+                    )
+                ]
+            )
+        }
+    }
+    
+    private func scrollToBottom(animatedDuration: Double, delay: Double = 0.05) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            withAnimation(.easeOut(duration: animatedDuration)) {
+                proxy.scrollTo("bottom_anchor", anchor: .bottom)
+            }
         }
     }
 }

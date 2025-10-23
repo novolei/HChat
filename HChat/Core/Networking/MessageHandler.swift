@@ -183,12 +183,39 @@ final class MessageHandler {
         
         // 解析附件
         var attachments: [Attachment] = []
-        if let a = obj["attachment"] as? [String: Any],
-           let urlStr = a["url"] as? String,
-           let u = URL(string: urlStr) {
-            let kind = Attachment.Kind(rawValue: (a["kind"] as? String) ?? "file") ?? .file
-            let fn = (a["filename"] as? String) ?? "attachment"
-            attachments = [Attachment(kind: kind, filename: fn, contentType: "application/octet-stream", putUrl: nil, getUrl: u, sizeBytes: nil)]
+        if let attArray = obj["attachments"] as? [[String: Any]] {
+            attachments = attArray.compactMap { item -> Attachment? in
+                guard let typeString = item["type"] as? String,
+                      let kind = Attachment.Kind(rawValue: typeString),
+                      let urlString = item["url"] as? String,
+                      let url = URL(string: urlString),
+                      let filename = item["filename"] as? String else {
+                    return nil
+                }
+
+                var attachment = Attachment(kind: kind, filename: filename, contentType: "application/octet-stream", putUrl: nil, getUrl: url, sizeBytes: nil)
+
+                if kind == .audio {
+                    if let duration = item["duration"] as? Double {
+                        attachment.duration = duration
+                    }
+                    if let waveform = item["waveform"] as? [Double] {
+                        attachment.waveform = waveform.map { CGFloat($0) }
+                    } else if let waveformString = item["waveform"] as? String,
+                              let data = Data(base64Encoded: waveformString) {
+                        let samples = stride(from: 0, to: data.count, by: MemoryLayout<Float>.size).compactMap { idx -> CGFloat? in
+                            guard idx + MemoryLayout<Float>.size <= data.count else { return nil }
+                            let value = data[idx..<(idx + MemoryLayout<Float>.size)].withUnsafeBytes { $0.load(as: Float.self) }
+                            return CGFloat(value)
+                        }
+                        if !samples.isEmpty {
+                            attachment.waveform = samples
+                        }
+                    }
+                }
+
+                return attachment
+            }
         }
         
         // ✨ P1: 解析引用信息

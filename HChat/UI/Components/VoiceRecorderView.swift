@@ -63,6 +63,7 @@ struct VoiceRecorderView: View {
                     handleDragEnd(value)
                 }
         )
+        .allowsHitTesting(isRecording)
         .onChange(of: isRecording) { _, newValue in
             if newValue {
                 // 开始录音时启动监控
