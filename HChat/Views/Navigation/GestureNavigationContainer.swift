@@ -420,28 +420,20 @@ struct GestureNavigationContainer: View {
         let willSwitch = (isVerticalGesture && value.translation.height > threshold && isScrolledToTop) ||
                         (isHorizontalGesture && abs(value.translation.width) > threshold)
         
-        // ✨ 根据是否切换选择不同的动画
+        // ✨ 参考 MomentsHomeView 的丝滑回弹设计
         let animation: Animation = willSwitch ?
             // 切换动画：快速响应
             .spring(
                 response: 0.4,
-                dampingFraction: 0.82,
-                blendDuration: 0.1
+                dampingFraction: 0.82
             ) :
-            // 回弹动画：仿微信丝滑效果 ✨
-            .interpolatingSpring(
-                mass: 1.0,           // 质量
-                stiffness: 150,      // 刚度降低：200 → 150（更柔和）
-                damping: 18,         // 阻尼降低：20 → 18（更平滑）
-                initialVelocity: 0   // 初始速度
+            // 回弹动画：仿 MomentsHomeView 丝滑效果 ✨
+            .spring(
+                response: 0.55,      // MomentsHomeView 同款
+                dampingFraction: 0.85 // MomentsHomeView 同款（高阻尼，无振荡）
             )
         
-        // ✨ 使用 transaction 确保动画不被打断
-        var transaction = Transaction(animation: animation)
-        transaction.disablesAnimations = false
-        transaction.isContinuous = false
-        
-        withTransaction(transaction) {
+        withAnimation(animation) {
             // ✨ 全方位垂直导航
             if isVerticalGesture && value.translation.height > threshold && isScrolledToTop {
                 // ✅ 顶部下拉 - 切换到下一行
