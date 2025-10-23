@@ -20,6 +20,7 @@ struct GestureNavigationContainer: View {
     @State private var dragOffset: CGSize = .zero
     @State private var isTransitioning = false
     @State private var isTwoFingerGesture = false  // 双指手势标记
+    @State private var lastTransitionDirection: Edge = .bottom  // 记录最后的过渡方向
     
     // MARK: - 滚动检测
     @State private var isScrolledToTop = false
@@ -321,11 +322,8 @@ struct GestureNavigationContainer: View {
     }
     
     private var transitionEdge: Edge {
-        if abs(dragOffset.height) > abs(dragOffset.width) {
-            return dragOffset.height > 0 ? .top : .bottom
-        } else {
-            return dragOffset.width > 0 ? .leading : .trailing
-        }
+        // 使用记录的最后过渡方向，而不是当前的 dragOffset
+        return lastTransitionDirection
     }
     
     private func handleDragChanged(_ value: DragGesture.Value) {
@@ -389,7 +387,8 @@ struct GestureNavigationContainer: View {
             // 垂直导航
             if isVerticalGesture && horizontalIndex == 1 {
                 if value.translation.height > threshold && isScrolledToTop {
-                    // ✅ 顶部下拉
+                    // ✅ 顶部下拉 - 新视图从下方滑入
+                    lastTransitionDirection = .bottom
                     verticalIndex = (verticalIndex + 1) % 3
                     impactMedium.impactOccurred()
                     flashPositionIndicator()
@@ -397,6 +396,7 @@ struct GestureNavigationContainer: View {
                 // 底部双指上滑 - 暂时禁用
                 /*
                 else if value.translation.height < -threshold && isScrolledToBottom {
+                    lastTransitionDirection = .top
                     verticalIndex = (verticalIndex - 1 + 3) % 3
                     impactMedium.impactOccurred()
                     flashPositionIndicator()
@@ -406,12 +406,14 @@ struct GestureNavigationContainer: View {
             // 水平导航
             else if isHorizontalGesture && verticalIndex == 0 {
                 if value.translation.width < -threshold {
-                    // 左滑
+                    // 左滑（手指向左） - 新视图从右侧滑入
+                    lastTransitionDirection = .trailing
                     horizontalIndex = (horizontalIndex + 1) % 3
                     impactHeavy.impactOccurred()
                     flashPositionIndicator()
                 } else if value.translation.width > threshold {
-                    // 右滑
+                    // 右滑（手指向右） - 新视图从左侧滑入
+                    lastTransitionDirection = .leading
                     horizontalIndex = (horizontalIndex - 1 + 3) % 3
                     impactHeavy.impactOccurred()
                     flashPositionIndicator()
