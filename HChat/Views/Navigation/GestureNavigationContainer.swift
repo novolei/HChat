@@ -23,7 +23,7 @@ struct GestureNavigationContainer: View {
     @State private var lastTransitionDirection: Edge = .bottom  // 记录最后的过渡方向
     
     // MARK: - 滚动检测
-    @State private var isScrolledToTop = false
+    @State private var isScrolledToTop = true   // ✅ 初始在顶部
     @State private var isScrolledToBottom = false
     
     // MARK: - UI 提示
@@ -466,6 +466,12 @@ struct GestureNavigationContainer: View {
     }
     
     private func setupInitialState() {
+        // ✅ 确保初始滚动状态正确（启动时在顶部）
+        isScrolledToTop = true
+        isScrolledToBottom = false
+        
+        print("🚀 初始化导航状态: isScrolledToTop=\(isScrolledToTop)")
+        
         // 短暂显示位置指示器
         showCentralIndicator = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
