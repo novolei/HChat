@@ -138,7 +138,7 @@ struct GestureNavigationContainer: View {
             
             // 垂直拖动时
             if abs(dragOffset.height) > 10 && dragOffset.height > 0 {
-                let nextV = (verticalIndex + 1) % 3  // 简单循环
+                let nextV = (verticalIndex + 1) % 3
                 
                 // ✨ 当前视图 - 跟随手指向下移动 + 淡出效果
                 viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
@@ -153,7 +153,9 @@ struct GestureNavigationContainer: View {
             }
             // 水平拖动时
             else if abs(dragOffset.width) > 10 {
-                let nextH = dragOffset.width < 0 ? (horizontalIndex + 1) % 3 : (horizontalIndex - 1 + 3) % 3
+                // ✨ 智能计算目标位置（考虑行1/2会回到行0）
+                let targetV = verticalIndex == 0 ? 0 : 0  // 行1/2都回到行0
+                let targetH = dragOffset.width < 0 ? (horizontalIndex + 1) % 3 : (horizontalIndex - 1 + 3) % 3
                 
                 // ✨ 当前视图 - 跟随手指移动 + 淡出效果
                 viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
@@ -161,8 +163,8 @@ struct GestureNavigationContainer: View {
                     .opacity(calculateFadeOutOpacity(for: abs(dragOffset.width), max: screenWidth * 0.6))
                     .zIndex(1)
                 
-                // 下一个视图 - 从对应方向跟随进入
-                viewForPosition(vertical: verticalIndex, horizontal: nextH)
+                // 目标视图 - 从对应方向跟随进入
+                viewForPosition(vertical: targetV, horizontal: targetH)
                     .offset(x: dragOffset.width < 0 ? screenWidth + dragOffset.width : -screenWidth + dragOffset.width)
                     .zIndex(0)
             }
