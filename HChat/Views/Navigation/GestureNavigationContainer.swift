@@ -347,7 +347,7 @@ struct GestureNavigationContainer: View {
     // MARK: - 手势处理
     
     private var navigationGesture: some Gesture {
-        DragGesture(minimumDistance: 20)  // 降低阈值，参考 MomentsHomeView 的 18
+        DragGesture(minimumDistance: 25)  // 提高最小距离：20 → 25，避免误触
             .onChanged { value in
                 handleDragChanged(value)
             }
@@ -372,30 +372,50 @@ struct GestureNavigationContainer: View {
         let isHorizontalGesture = abs(translation.width) > abs(translation.height)
         
         // ✨ 全方位垂直手势（所有列都支持）
-        if isVerticalGesture && translation.height > 20 && isScrolledToTop {
-            let dampingFactor: CGFloat = 0.8
-            let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5
-            dragOffset = CGSize(width: 0, height: min(translation.height * dampingFactor, maxDrag))
+        if isVerticalGesture && translation.height > 30 && isScrolledToTop {  // 提高阈值：20→30
+            let dampingFactor: CGFloat = 0.75  // 降低阻尼，增加回弹感
+            let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.45  // 稍微降低上限，增加紧致感
+            
+            // ✨ 添加弹性阻尼（越拖越难）
+            let elasticDamping = calculateElasticDamping(offset: translation.height, max: maxDrag)
+            dragOffset = CGSize(width: 0, height: min(translation.height * dampingFactor * elasticDamping, maxDrag))
         }
         // ✨ 全方位水平手势（所有行都支持）
-        else if isHorizontalGesture && abs(translation.width) > 20 {
-            let dampingFactor: CGFloat = 0.7
-            let maxDrag: CGFloat = UIScreen.main.bounds.width * 0.6
-            dragOffset = CGSize(width: min(abs(translation.width) * dampingFactor, maxDrag) * (translation.width > 0 ? 1 : -1), height: 0)
+        else if isHorizontalGesture && abs(translation.width) > 30 {  // 提高阈值：20→30
+            let dampingFactor: CGFloat = 0.65  // 降低阻尼，增加回弹感
+            let maxDrag: CGFloat = UIScreen.main.bounds.width * 0.55  // 稍微降低上限
+            
+            // ✨ 添加弹性阻尼（越拖越难）
+            let elasticDamping = calculateElasticDamping(offset: abs(translation.width), max: maxDrag)
+            dragOffset = CGSize(width: min(abs(translation.width) * dampingFactor * elasticDamping, maxDrag) * (translation.width > 0 ? 1 : -1), height: 0)
         }
         else {
             dragOffset = .zero
         }
     }
     
+    /// 计算弹性阻尼（越接近上限，阻尼越大，产生回弹感）
+    private func calculateElasticDamping(offset: CGFloat, max maxOffset: CGFloat) -> CGFloat {
+        let progress = min(offset / maxOffset, 1.0)
+        // 使用二次函数创造越拖越难的感觉
+        return 1.0 - (progress * progress * 0.3)  // 阻尼范围：1.0 → 0.7
+    }
+    
     private func handleDragEnded(_ value: DragGesture.Value) {
-        let threshold: CGFloat = 150  // 🔧 提高阈值：从 100 到 150
+        let threshold: CGFloat = 180  // 🔧 提高阈值：150 → 180，更慎重的切换
         isTransitioning = true
         
         let isVerticalGesture = abs(value.translation.height) > abs(value.translation.width)
         let isHorizontalGesture = abs(value.translation.width) > abs(value.translation.height)
         
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+        // ✨ 优化动画：更流畅的弹性效果
+        let animation: Animation = .spring(
+            response: 0.5,        // 响应时间稍长：0.4 → 0.5，更平滑
+            dampingFraction: 0.75, // 降低阻尼：0.8 → 0.75，增加回弹感
+            blendDuration: 0.2    // 添加混合时长，过渡更自然
+        )
+        
+        withAnimation(animation) {
             // ✨ 全方位垂直导航
             if isVerticalGesture && value.translation.height > threshold && isScrolledToTop {
                 // ✅ 顶部下拉 - 切换到下一行
