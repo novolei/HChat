@@ -196,6 +196,9 @@ struct GestureNavigationContainer: View {
                 if vertical == verticalIndex && horizontal == horizontalIndex {
                     handleScrollPosition(isTop: isTop, isBottom: isBottom)
                 }
+            }, onDragDirectionChange: { direction in
+                // 将拖动方向传递给容器
+                handleDragDirectionChange(direction)
             })
         case (0, 2):  // Personal
             PersonalizationView(client: client)
@@ -211,6 +214,9 @@ struct GestureNavigationContainer: View {
                 if vertical == verticalIndex && horizontal == horizontalIndex {
                     handleScrollPosition(isTop: isTop, isBottom: isBottom)
                 }
+            }, onDragDirectionChange: { direction in
+                // 将拖动方向传递给容器
+                handleDragDirectionChange(direction)
             })
         
         // ========== 行2：Channels 层（所有列）==========
@@ -554,6 +560,22 @@ struct GestureNavigationContainer: View {
             }
         }
     }
+    
+    private func handleDragDirectionChange(_ direction: ScrollDirection) {
+        switch direction {
+        case .up:
+            // 用户向上拖动，立即认为当前不在顶部
+            if isScrolledToTop {
+                print("📜 方向检测: 向上拖动，立即标记不在顶部")
+            }
+            isScrolledToTop = false
+        case .down:
+            // 向下拖动不改变 isScrolledToTop，实际顶部由 scrollPosition 回调恢复
+            break
+        case .idle:
+            break
+        }
+    }
 }
 
 // MARK: - 边缘提示组件
@@ -719,38 +741,111 @@ struct GestureNavScrollOffsetKey: PreferenceKey {
 
 // MARK: - View Wrappers
 
+private enum ScrollDirection {
+    case up
+    case down
+    case idle
+}
+
+private struct ScrollDirectionCaptureView<Content: View>: View {
+    let onDirectionChange: (ScrollDirection) -> Void
+    let content: Content
+    
+    init(onDirectionChange: @escaping (ScrollDirection) -> Void, @ViewBuilder content: () -> Content) {
+        self.onDirectionChange = onDirectionChange
+        self.content = content()
+    }
+    
+    var body: some View {
+        content
+            .background(GeometryReader { _ in
+                DirectionGestureRepresentable(onDirectionChange: onDirectionChange)
+                    .allowsHitTesting(false)
+            })
+    }
+    
+    private struct DirectionGestureRepresentable: UIViewRepresentable {
+        let onDirectionChange: (ScrollDirection) -> Void
+        
+        func makeUIView(context: Context) -> DirectionGestureView {
+            let view = DirectionGestureView()
+            view.onDirectionChange = onDirectionChange
+            return view
+        }
+        
+        func updateUIView(_ uiView: DirectionGestureView, context: Context) {
+            uiView.onDirectionChange = onDirectionChange
+        }
+    }
+    
+    private final class DirectionGestureView: UIView {
+        var onDirectionChange: ((ScrollDirection) -> Void)?
+        private var panRecognizer: UIPanGestureRecognizer?
+        
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            backgroundColor = .clear
+            isUserInteractionEnabled = true
+            let recognizer = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+            recognizer.cancelsTouchesInView = false
+            recognizer.minimumNumberOfTouches = 1
+            addGestureRecognizer(recognizer)
+            panRecognizer = recognizer
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
+            let velocity = recognizer.velocity(in: self)
+            if abs(velocity.y) > abs(velocity.x) {
+                if velocity.y < 0 {
+                    onDirectionChange?(.up)
+                } else if velocity.y > 0 {
+                    onDirectionChange?(.down)
+                }
+            } else {
+                onDirectionChange?(.idle)
+            }
+            if recognizer.state == .ended || recognizer.state == .cancelled {
+                onDirectionChange?(.idle)
+            }
+        }
+    }
+}
+
 /// MomentsFeedView 包装器 - 独立使用，不依赖 MomentsHomeView
 private struct MomentsFeedViewWrapper: View {
     let client: HackChatClient
     @State private var isAtTop: Bool = true
     @State private var externalDragOffset: CGFloat = 0
-    @State private var hasInitialized: Bool = false  // ✅ 跳过初始化触发
+    @State private var hasSentInitialState: Bool = false
     private let triggerDistance: CGFloat = 200
     let onScrollPosition: (Bool, Bool) -> Void
+    let onDragDirectionChange: (ScrollDirection) -> Void
     
     var body: some View {
-        // ✨ 直接使用 MomentsHomeView 中的 MomentsFeedView
-        MomentsFeedView(
-            client: client,
-            isAtTop: $isAtTop,
-            externalDragOffset: $externalDragOffset,
-            triggerDistance: triggerDistance
-        )
-        .onChange(of: isAtTop) { oldValue, newValue in
-            // ✅ 跳过初始化时的触发，避免错误地重置滚动状态
-            guard hasInitialized else {
-                hasInitialized = true
-                print("📜 MomentsFeedView 初始化，跳过首次状态变化")
-                return
+        ScrollDirectionCaptureView(onDirectionChange: onDragDirectionChange) {
+            MomentsFeedView(
+                client: client,
+                isAtTop: $isAtTop,
+                externalDragOffset: $externalDragOffset,
+                triggerDistance: triggerDistance
+            )
+            .onAppear {
+                if !hasSentInitialState {
+                    hasSentInitialState = true
+                    onScrollPosition(isAtTop, false)
+                }
             }
-            
-            // 🐛 调试
-            print("📜 MomentsFeedView 滚动状态变化: isAtTop=\(newValue) (oldValue=\(oldValue))")
-            onScrollPosition(newValue, false)
-        }
-        .onChange(of: externalDragOffset) { oldValue, newValue in
-            // 🐛 调试：监听 externalDragOffset 变化
-            print("📜 MomentsFeedView externalDragOffset 变化: \(oldValue) → \(newValue)")
+            .onChange(of: isAtTop) { oldValue, newValue in
+                print("📜 MomentsFeedView 滚动状态变化: isAtTop=\(newValue) (oldValue=\(oldValue))")
+                onScrollPosition(newValue, false)
+            }
+            .onChange(of: externalDragOffset) { oldValue, newValue in
+                print("📜 MomentsFeedView externalDragOffset 变化: \(oldValue) → \(newValue)")
+            }
         }
     }
 }
@@ -760,33 +855,32 @@ private struct ConnectionsFeedViewWrapper: View {
     let client: HackChatClient
     @State private var isAtTop: Bool = true
     @State private var externalDragOffset: CGFloat = 0
-    @State private var hasInitialized: Bool = false  // ✅ 跳过初始化触发
+    @State private var hasSentInitialState: Bool = false
     private let triggerDistance: CGFloat = 200
     let onScrollPosition: (Bool, Bool) -> Void
+    let onDragDirectionChange: (ScrollDirection) -> Void
     
     var body: some View {
-        // ✨ 直接使用 MomentsHomeView 中的 ConnectionsFeedView
-        ConnectionsFeedView(
-            client: client,
-            isAtTop: $isAtTop,
-            externalDragOffset: $externalDragOffset,
-            triggerDistance: triggerDistance
-        )
-        .onChange(of: isAtTop) { oldValue, newValue in
-            // ✅ 跳过初始化时的触发，避免错误地重置滚动状态
-            guard hasInitialized else {
-                hasInitialized = true
-                print("📜 ConnectionsFeedView 初始化，跳过首次状态变化")
-                return
+        ScrollDirectionCaptureView(onDirectionChange: onDragDirectionChange) {
+            ConnectionsFeedView(
+                client: client,
+                isAtTop: $isAtTop,
+                externalDragOffset: $externalDragOffset,
+                triggerDistance: triggerDistance
+            )
+            .onAppear {
+                if !hasSentInitialState {
+                    hasSentInitialState = true
+                    onScrollPosition(isAtTop, false)
+                }
             }
-            
-            // 🐛 调试
-            print("📜 ConnectionsFeedView 滚动状态变化: isAtTop=\(newValue) (oldValue=\(oldValue))")
-            onScrollPosition(newValue, false)
-        }
-        .onChange(of: externalDragOffset) { oldValue, newValue in
-            // 🐛 调试：监听 externalDragOffset 变化
-            print("📜 ConnectionsFeedView externalDragOffset 变化: \(oldValue) → \(newValue)")
+            .onChange(of: isAtTop) { oldValue, newValue in
+                print("📜 ConnectionsFeedView 滚动状态变化: isAtTop=\(newValue) (oldValue=\(oldValue))")
+                onScrollPosition(newValue, false)
+            }
+            .onChange(of: externalDragOffset) { oldValue, newValue in
+                print("📜 ConnectionsFeedView externalDragOffset 变化: \(oldValue) → \(newValue)")
+            }
         }
     }
 }
