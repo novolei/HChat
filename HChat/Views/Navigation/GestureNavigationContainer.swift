@@ -57,13 +57,6 @@ struct GestureNavigationContainer: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // ✨ 透明手势捕获层（关键修复）
-            // 使用 simultaneousGesture 与 ScrollView 共存
-            Color.clear
-                .contentShape(Rectangle())
-                .simultaneousGesture(navigationGesture)
-                .allowsHitTesting(false)  // 🔑 不阻塞点击，只捕获手势
-            
             // ✨ 边缘导航提示（呼吸动画）
             if showEdgeHints {
                 edgeNavigationHints
@@ -76,6 +69,8 @@ struct GestureNavigationContainer: View {
                     .transition(.scale.combined(with: .opacity))
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .simultaneousGesture(navigationGesture)  // 🔑 参考 MomentsHomeView 的方式
         .onAppear {
             setupInitialState()
         }
@@ -297,7 +292,7 @@ struct GestureNavigationContainer: View {
     // MARK: - 手势处理
     
     private var navigationGesture: some Gesture {
-        DragGesture(minimumDistance: 30)
+        DragGesture(minimumDistance: 20)  // 降低阈值，参考 MomentsHomeView 的 18
             .onChanged { value in
                 handleDragChanged(value)
             }
@@ -312,52 +307,34 @@ struct GestureNavigationContainer: View {
     }
     
     private func handleDragChanged(_ value: DragGesture.Value) {
-        guard !isTransitioning else { return }
-        
-        let isVerticalGesture = abs(value.translation.height) > abs(value.translation.width)
-        let isHorizontalGesture = abs(value.translation.width) > abs(value.translation.height)
-        
-        // 🐛 调试：打印手势信息
-        print("🎯 手势检测: vertical=\(isVerticalGesture), horizontal=\(isHorizontalGesture)")
-        print("   位置: v=\(verticalIndex), h=\(horizontalIndex)")
-        print("   滚动状态: top=\(isScrolledToTop), bottom=\(isScrolledToBottom)")
-        print("   拖动距离: \(value.translation)")
-        
-        // 垂直手势（仅在中央列）
-        if isVerticalGesture && horizontalIndex == 1 {
-            // 顶部下拉（单指）
-            if value.translation.height > 0 && isScrolledToTop {
-                dragOffset = CGSize(width: 0, height: value.translation.height * 0.4)
-                print("✅ 触发顶部下拉，offset=\(dragOffset)")
-                
-                if value.translation.height > 60 && value.translation.height < 65 {
-                    impactLight.impactOccurred()
-                }
-            } else {
-                print("❌ 垂直手势未满足条件: height=\(value.translation.height), isTop=\(isScrolledToTop)")
-            }
-            // 底部上滑（双指）- 暂时禁用，DragGesture 不支持 numberOfTouches
-            // TODO: 使用 UIGestureRecognizer 实现双指检测
-            /*
-            else if value.translation.height < 0 && isScrolledToBottom {
-                dragOffset = CGSize(width: 0, height: value.translation.height * 0.4)
-                
-                if abs(value.translation.height) > 60 && abs(value.translation.height) < 65 {
-                    impactLight.impactOccurred()
-                }
-            }
-            */
+        guard !isTransitioning else {
+            dragOffset = .zero
+            return
         }
-        // 水平手势（仅在 Home 层）
-        else if isHorizontalGesture && verticalIndex == 0 {
-            dragOffset = CGSize(width: value.translation.width * 0.3, height: 0)
-            print("✅ 触发水平滑动，offset=\(dragOffset)")
-            
-            if abs(value.translation.width) > 60 && abs(value.translation.width) < 65 {
-                impactLight.impactOccurred()
+        
+        let translation = value.translation
+        let isVerticalGesture = abs(translation.height) > abs(translation.width)
+        let isHorizontalGesture = abs(translation.width) > abs(translation.height)
+        
+        // 垂直手势（仅在中央列且在顶部）
+        if isVerticalGesture && horizontalIndex == 1 && isScrolledToTop {
+            guard translation.height > 20 else {
+                dragOffset = .zero
+                return
             }
-        } else {
-            print("❌ 手势未匹配任何条件")
+            // 参考 MomentsHomeView: 拖动距离有上限
+            dragOffset = CGSize(width: 0, height: min(translation.height * 0.5, 150))
+        }
+        // 水平手势（仅在第0层）
+        else if isHorizontalGesture && verticalIndex == 0 {
+            guard abs(translation.width) > 20 else {
+                dragOffset = .zero
+                return
+            }
+            dragOffset = CGSize(width: min(abs(translation.width) * 0.4, 120) * (translation.width > 0 ? 1 : -1), height: 0)
+        }
+        else {
+            dragOffset = .zero
         }
     }
     
