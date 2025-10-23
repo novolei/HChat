@@ -131,29 +131,43 @@ struct GestureNavigationContainer: View {
     
     @ViewBuilder
     private var currentView: some View {
-        // ✨ 抖音/微信风格：同时显示当前和相邻视图，创造衔接感
+        // ✨ 抖音/微信风格：当前视图和相邻视图同步移动
         ZStack {
-            // 当前视图
-            viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
-                .zIndex(1)
+            let screenHeight = UIScreen.main.bounds.height
+            let screenWidth = UIScreen.main.bounds.width
             
-            // 预加载相邻视图（根据拖动方向）
-            if abs(dragOffset.height) > 10 || abs(dragOffset.width) > 10 {
-                // 垂直方向的相邻视图
-                if dragOffset.height > 10 && horizontalIndex == 1 {
-                    let nextV = (verticalIndex + 1) % 3
-                    viewForPosition(vertical: nextV, horizontal: horizontalIndex)
-                        .offset(y: -UIScreen.main.bounds.height + dragOffset.height)
-                        .zIndex(0)
-                }
+            // 垂直拖动时
+            if abs(dragOffset.height) > 10 && dragOffset.height > 0 && horizontalIndex == 1 {
+                let nextV = (verticalIndex + 1) % 3
                 
-                // 水平方向的相邻视图
-                if abs(dragOffset.width) > 10 && verticalIndex == 0 {
-                    let nextH = dragOffset.width < 0 ? (horizontalIndex + 1) % 3 : (horizontalIndex - 1 + 3) % 3
-                    viewForPosition(vertical: verticalIndex, horizontal: nextH)
-                        .offset(x: dragOffset.width < 0 ? UIScreen.main.bounds.width + dragOffset.width : -UIScreen.main.bounds.width + dragOffset.width)
-                        .zIndex(0)
-                }
+                // 当前视图 - 跟随手指向下移动
+                viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
+                    .offset(y: dragOffset.height)
+                    .zIndex(1)
+                
+                // 下一个视图 - 从上方跟随进入
+                viewForPosition(vertical: nextV, horizontal: horizontalIndex)
+                    .offset(y: -screenHeight + dragOffset.height)
+                    .zIndex(0)
+            }
+            // 水平拖动时
+            else if abs(dragOffset.width) > 10 && verticalIndex == 0 {
+                let nextH = dragOffset.width < 0 ? (horizontalIndex + 1) % 3 : (horizontalIndex - 1 + 3) % 3
+                
+                // 当前视图 - 跟随手指移动
+                viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
+                    .offset(x: dragOffset.width)
+                    .zIndex(1)
+                
+                // 下一个视图 - 从对应方向跟随进入
+                viewForPosition(vertical: verticalIndex, horizontal: nextH)
+                    .offset(x: dragOffset.width < 0 ? screenWidth + dragOffset.width : -screenWidth + dragOffset.width)
+                    .zIndex(0)
+            }
+            // 没有拖动时
+            else {
+                viewForPosition(vertical: verticalIndex, horizontal: horizontalIndex)
+                    .zIndex(1)
             }
         }
     }
