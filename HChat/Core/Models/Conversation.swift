@@ -19,7 +19,7 @@ public enum ConversationType: String, Codable {
 /// 
 /// 用于统一管理私聊、频道、群聊等不同类型的会话
 /// 包含最后消息、未读数、置顶等状态
-public struct Conversation: Identifiable, Codable, Equatable {
+public struct Conversation: Identifiable, Codable, Equatable, Hashable {
     public let id: String                  // 会话 ID
     public let type: ConversationType      // 会话类型
     public var title: String               // 显示名称

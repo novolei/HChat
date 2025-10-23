@@ -49,6 +49,7 @@ enum ChatBackgroundStyle: String, CaseIterable, Identifiable {
 
 struct ChatView: View {
     var client: HackChatClient
+    var conversation: Conversation? = nil  // ✨ 新增：关联的会话
     var onBack: (() -> Void)? = nil
     @State private var backgroundModel = ChatBackgroundModel()
     @State var callManager = CallManager()
