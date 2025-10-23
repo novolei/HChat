@@ -500,6 +500,12 @@ struct GestureNavigationContainer: View {
     }
     
     private func handleScrollPosition(isTop: Bool, isBottom: Bool) {
+        // ✅ 只在非过渡状态时更新滚动位置，避免视图切换时的误触
+        guard !isTransitioning else {
+            print("📜 跳过滚动位置更新（正在过渡）")
+            return
+        }
+        
         isScrolledToTop = isTop
         isScrolledToBottom = isBottom
         
@@ -718,6 +724,7 @@ private struct MomentsFeedViewWrapper: View {
     let client: HackChatClient
     @State private var isAtTop: Bool = true
     @State private var externalDragOffset: CGFloat = 0
+    @State private var hasInitialized: Bool = false  // ✅ 跳过初始化触发
     private let triggerDistance: CGFloat = 200
     let onScrollPosition: (Bool, Bool) -> Void
     
@@ -730,6 +737,13 @@ private struct MomentsFeedViewWrapper: View {
             triggerDistance: triggerDistance
         )
         .onChange(of: isAtTop) { oldValue, newValue in
+            // ✅ 跳过初始化时的触发，避免错误地重置滚动状态
+            guard hasInitialized else {
+                hasInitialized = true
+                print("📜 MomentsFeedView 初始化，跳过首次状态变化")
+                return
+            }
+            
             // 🐛 调试
             print("📜 MomentsFeedView 滚动状态变化: isAtTop=\(newValue)")
             onScrollPosition(newValue, false)
@@ -742,6 +756,7 @@ private struct ConnectionsFeedViewWrapper: View {
     let client: HackChatClient
     @State private var isAtTop: Bool = true
     @State private var externalDragOffset: CGFloat = 0
+    @State private var hasInitialized: Bool = false  // ✅ 跳过初始化触发
     private let triggerDistance: CGFloat = 200
     let onScrollPosition: (Bool, Bool) -> Void
     
@@ -754,6 +769,13 @@ private struct ConnectionsFeedViewWrapper: View {
             triggerDistance: triggerDistance
         )
         .onChange(of: isAtTop) { oldValue, newValue in
+            // ✅ 跳过初始化时的触发，避免错误地重置滚动状态
+            guard hasInitialized else {
+                hasInitialized = true
+                print("📜 ConnectionsFeedView 初始化，跳过首次状态变化")
+                return
+            }
+            
             // 🐛 调试
             print("📜 ConnectionsFeedView 滚动状态变化: isAtTop=\(newValue)")
             onScrollPosition(newValue, false)
