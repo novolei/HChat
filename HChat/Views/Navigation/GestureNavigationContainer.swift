@@ -182,87 +182,45 @@ struct GestureNavigationContainer: View {
     
     @ViewBuilder
     private func viewForPosition(vertical: Int, horizontal: Int) -> some View {
-        // ✨ 所有列都根据垂直索引显示对应内容
-        switch vertical {
-        // ========== 行0：Moments 层 ==========
-        case 0:
-            switch horizontal {
-            case 0:  // Explorer列
-                ExplorerView(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        if vertical == verticalIndex && horizontal == horizontalIndex {
-                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                        }
-                    }
-            case 1:  // Home列
-                MomentsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+        switch (vertical, horizontal) {
+        // ========== 行0：多样化层 ==========
+        case (0, 0):  // Explorer
+            ExplorerView(client: client)
+                .onScrollPosition { isTop, isBottom in
                     if vertical == verticalIndex && horizontal == horizontalIndex {
                         handleScrollPosition(isTop: isTop, isBottom: isBottom)
                     }
-                })
-            case 2:  // Personal列
-                PersonalizationView(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        if vertical == verticalIndex && horizontal == horizontalIndex {
-                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                        }
+                }
+        case (0, 1):  // Moments
+            MomentsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                if vertical == verticalIndex && horizontal == horizontalIndex {
+                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                }
+            })
+        case (0, 2):  // Personal
+            PersonalizationView(client: client)
+                .onScrollPosition { isTop, isBottom in
+                    if vertical == verticalIndex && horizontal == horizontalIndex {
+                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
                     }
-            default:
-                EmptyView()
-            }
+                }
         
-        // ========== 行1：Connections 层 ==========
-        case 1:
-            switch horizontal {
-            case 0:  // Explorer列 - 显示 Connections
-                ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
-                    if vertical == verticalIndex && horizontal == horizontalIndex {
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                    }
-                })
-            case 1:  // Home列 - 显示 Connections
-                ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
-                    if vertical == verticalIndex && horizontal == horizontalIndex {
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                    }
-                })
-            case 2:  // Personal列 - 显示 Connections
-                ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
-                    if vertical == verticalIndex && horizontal == horizontalIndex {
-                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                    }
-                })
-            default:
-                EmptyView()
-            }
+        // ========== 行1：Connections 层（所有列）==========
+        case (1, 0), (1, 1), (1, 2):
+            ConnectionsFeedViewWrapper(client: client, onScrollPosition: { isTop, isBottom in
+                if vertical == verticalIndex && horizontal == horizontalIndex {
+                    handleScrollPosition(isTop: isTop, isBottom: isBottom)
+                }
+            })
         
-        // ========== 行2：Channels 层 ==========
-        case 2:
-            switch horizontal {
-            case 0:  // Explorer列 - 显示 Channels
-                ChannelsContactsTabView(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        if vertical == verticalIndex && horizontal == horizontalIndex {
-                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                        }
+        // ========== 行2：Channels 层（所有列）==========
+        case (2, 0), (2, 1), (2, 2):
+            ChannelsContactsTabView(client: client)
+                .onScrollPosition { isTop, isBottom in
+                    if vertical == verticalIndex && horizontal == horizontalIndex {
+                        handleScrollPosition(isTop: isTop, isBottom: isBottom)
                     }
-            case 1:  // Home列 - 显示 Channels
-                ChannelsContactsTabView(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        if vertical == verticalIndex && horizontal == horizontalIndex {
-                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                        }
-                    }
-            case 2:  // Personal列 - 显示 Channels
-                ChannelsContactsTabView(client: client)
-                    .onScrollPosition { isTop, isBottom in
-                        if vertical == verticalIndex && horizontal == horizontalIndex {
-                            handleScrollPosition(isTop: isTop, isBottom: isBottom)
-                        }
-                    }
-            default:
-                EmptyView()
-            }
+                }
         
         default:
             EmptyView()
@@ -446,23 +404,32 @@ struct GestureNavigationContainer: View {
                 print("🔄 垂直切换: (\(verticalIndex), \(horizontalIndex))")
             }
             
-            // ✨ 全方位水平导航
+            // ✨ 水平导航
             if isHorizontalGesture && abs(value.translation.width) > threshold {
-                if value.translation.width < 0 {
-                    // 左滑（手指向左）
-                    lastTransitionDirection = .trailing
-                    horizontalIndex = (horizontalIndex + 1) % 3
-                    impactHeavy.impactOccurred()
-                    flashPositionIndicator()
-                    print("🔄 水平切换（左）: (\(verticalIndex), \(horizontalIndex))")
+                if verticalIndex == 0 {
+                    // 行0：正常水平切换
+                    if value.translation.width < 0 {
+                        lastTransitionDirection = .trailing
+                        horizontalIndex = (horizontalIndex + 1) % 3
+                    } else {
+                        lastTransitionDirection = .leading
+                        horizontalIndex = (horizontalIndex - 1 + 3) % 3
+                    }
                 } else {
-                    // 右滑（手指向右）
-                    lastTransitionDirection = .leading
-                    horizontalIndex = (horizontalIndex - 1 + 3) % 3
-                    impactHeavy.impactOccurred()
-                    flashPositionIndicator()
-                    print("🔄 水平切换（右）: (\(verticalIndex), \(horizontalIndex))")
+                    // 行1/2：水平滑动回到行0的对应列
+                    lastTransitionDirection = value.translation.width < 0 ? .trailing : .leading
+                    verticalIndex = 0  // 回到行0
+                    if value.translation.width < 0 {
+                        // 左滑：下一列
+                        horizontalIndex = (horizontalIndex + 1) % 3
+                    } else {
+                        // 右滑：上一列
+                        horizontalIndex = (horizontalIndex - 1 + 3) % 3
+                    }
                 }
+                impactHeavy.impactOccurred()
+                flashPositionIndicator()
+                print("🔄 水平切换: (\(verticalIndex), \(horizontalIndex))")
             }
             
             dragOffset = .zero
