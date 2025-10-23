@@ -745,8 +745,12 @@ private struct MomentsFeedViewWrapper: View {
             }
             
             // 🐛 调试
-            print("📜 MomentsFeedView 滚动状态变化: isAtTop=\(newValue)")
+            print("📜 MomentsFeedView 滚动状态变化: isAtTop=\(newValue) (oldValue=\(oldValue))")
             onScrollPosition(newValue, false)
+        }
+        .onChange(of: externalDragOffset) { oldValue, newValue in
+            // 🐛 调试：监听 externalDragOffset 变化
+            print("📜 MomentsFeedView externalDragOffset 变化: \(oldValue) → \(newValue)")
         }
     }
 }
@@ -777,8 +781,12 @@ private struct ConnectionsFeedViewWrapper: View {
             }
             
             // 🐛 调试
-            print("📜 ConnectionsFeedView 滚动状态变化: isAtTop=\(newValue)")
+            print("📜 ConnectionsFeedView 滚动状态变化: isAtTop=\(newValue) (oldValue=\(oldValue))")
             onScrollPosition(newValue, false)
+        }
+        .onChange(of: externalDragOffset) { oldValue, newValue in
+            // 🐛 调试：监听 externalDragOffset 变化
+            print("📜 ConnectionsFeedView externalDragOffset 变化: \(oldValue) → \(newValue)")
         }
     }
 }
