@@ -8,7 +8,11 @@ struct HChatApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView(client: client)
+            // ✨ 启用新的沉浸式手势导航系统
+            GestureNavigationContainer(client: client)
+            
+            // 💡 如需切回旧版 Tab 导航，取消下面的注释
+            // MainTabView(client: client)
                 .onAppear {
                     // ✅ 请求通知权限
                     Task {
