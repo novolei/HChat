@@ -253,20 +253,20 @@ struct GestureNavigationContainer: View {
         
         HStack(spacing: 4) {
             Circle()
-                .fill(layerColor.opacity(0.8))
+                .fill(layerColor.opacity(0.9))
                 .frame(width: 6, height: 6)
             
             Text(layerName)
                 .font(.caption2)
                 .fontWeight(.medium)
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(.white.opacity(0.9))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(
             Capsule()
-                .fill(.ultraThinMaterial)
-                .shadow(color: layerColor.opacity(0.3), radius: 8, y: 2)
+                .fill(Color.black.opacity(0.5))  // ✨ 淡黑色背景
+                .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
         )
     }
     
