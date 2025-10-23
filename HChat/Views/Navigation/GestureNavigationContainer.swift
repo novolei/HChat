@@ -131,13 +131,13 @@ struct GestureNavigationContainer: View {
     
     @ViewBuilder
     private var currentView: some View {
-        // ✨ 抖音/微信风格：当前视图和相邻视图同步移动
+        // ✨ 全方位双画面衔接：9宫格任意位置都支持垂直和水平拖动
         ZStack {
             let screenHeight = UIScreen.main.bounds.height
             let screenWidth = UIScreen.main.bounds.width
             
-            // 垂直拖动时
-            if abs(dragOffset.height) > 10 && dragOffset.height > 0 && horizontalIndex == 1 {
+            // 垂直拖动时（所有列都支持）
+            if abs(dragOffset.height) > 10 && dragOffset.height > 0 {
                 let nextV = (verticalIndex + 1) % 3
                 
                 // 当前视图 - 跟随手指向下移动
@@ -145,13 +145,13 @@ struct GestureNavigationContainer: View {
                     .offset(y: dragOffset.height)
                     .zIndex(1)
                 
-                // 下一个视图 - 从上方跟随进入
+                // 下一个视图 - 从上方跟随进入（保持当前列）
                 viewForPosition(vertical: nextV, horizontal: horizontalIndex)
                     .offset(y: -screenHeight + dragOffset.height)
                     .zIndex(0)
             }
-            // 水平拖动时
-            else if abs(dragOffset.width) > 10 && verticalIndex == 0 {
+            // 水平拖动时（所有行都支持）
+            else if abs(dragOffset.width) > 10 {
                 let nextH = dragOffset.width < 0 ? (horizontalIndex + 1) % 3 : (horizontalIndex - 1 + 3) % 3
                 
                 // 当前视图 - 跟随手指移动
@@ -159,7 +159,7 @@ struct GestureNavigationContainer: View {
                     .offset(x: dragOffset.width)
                     .zIndex(1)
                 
-                // 下一个视图 - 从对应方向跟随进入
+                // 下一个视图 - 从对应方向跟随进入（保持当前行）
                 viewForPosition(vertical: verticalIndex, horizontal: nextH)
                     .offset(x: dragOffset.width < 0 ? screenWidth + dragOffset.width : -screenWidth + dragOffset.width)
                     .zIndex(0)
@@ -361,26 +361,16 @@ struct GestureNavigationContainer: View {
         let isVerticalGesture = abs(translation.height) > abs(translation.width)
         let isHorizontalGesture = abs(translation.width) > abs(translation.height)
         
-        // 垂直手势（仅在中央列且在顶部）
-        if isVerticalGesture && horizontalIndex == 1 && isScrolledToTop {
-            guard translation.height > 20 else {
-                dragOffset = .zero
-                return
-            }
-            // ✨ 更线性的拖动，更跟手
-            let dampingFactor: CGFloat = 0.8  // 从 0.5 提高到 0.8
-            let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5  // 最多拖动半屏
+        // ✨ 全方位垂直手势（所有列都支持，在顶部时）
+        if isVerticalGesture && translation.height > 20 && isScrolledToTop {
+            let dampingFactor: CGFloat = 0.8
+            let maxDrag: CGFloat = UIScreen.main.bounds.height * 0.5
             dragOffset = CGSize(width: 0, height: min(translation.height * dampingFactor, maxDrag))
         }
-        // 水平手势（仅在第0层）
-        else if isHorizontalGesture && verticalIndex == 0 {
-            guard abs(translation.width) > 20 else {
-                dragOffset = .zero
-                return
-            }
-            // ✨ 更线性的拖动，更跟手
-            let dampingFactor: CGFloat = 0.7  // 从 0.4 提高到 0.7
-            let maxDrag: CGFloat = UIScreen.main.bounds.width * 0.6  // 最多拖动 60% 屏宽
+        // ✨ 全方位水平手势（所有行都支持）
+        else if isHorizontalGesture && abs(translation.width) > 20 {
+            let dampingFactor: CGFloat = 0.7
+            let maxDrag: CGFloat = UIScreen.main.bounds.width * 0.6
             dragOffset = CGSize(width: min(abs(translation.width) * dampingFactor, maxDrag) * (translation.width > 0 ? 1 : -1), height: 0)
         }
         else {
@@ -396,34 +386,24 @@ struct GestureNavigationContainer: View {
         let isHorizontalGesture = abs(value.translation.width) > abs(value.translation.height)
         
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            // 垂直导航
-            if isVerticalGesture && horizontalIndex == 1 {
-                if value.translation.height > threshold && isScrolledToTop {
-                    // ✅ 顶部下拉 - 新视图从上方滑入（跟随手指向下的动作）
-                    lastTransitionDirection = .top
-                    verticalIndex = (verticalIndex + 1) % 3
-                    impactMedium.impactOccurred()
-                    flashPositionIndicator()
-                }
-                // 底部双指上滑 - 暂时禁用
-                /*
-                else if value.translation.height < -threshold && isScrolledToBottom {
-                    lastTransitionDirection = .top
-                    verticalIndex = (verticalIndex - 1 + 3) % 3
-                    impactMedium.impactOccurred()
-                    flashPositionIndicator()
-                }
-                */
+            // ✨ 全方位垂直导航（所有列都支持）
+            if isVerticalGesture && value.translation.height > threshold && isScrolledToTop {
+                // ✅ 顶部下拉 - 新视图从上方滑入
+                lastTransitionDirection = .top
+                verticalIndex = (verticalIndex + 1) % 3
+                impactMedium.impactOccurred()
+                flashPositionIndicator()
             }
-            // 水平导航
-            else if isHorizontalGesture && verticalIndex == 0 {
-                if value.translation.width < -threshold {
+            
+            // ✨ 全方位水平导航（所有行都支持）
+            if isHorizontalGesture && abs(value.translation.width) > threshold {
+                if value.translation.width < 0 {
                     // 左滑（手指向左） - 新视图从右侧滑入
                     lastTransitionDirection = .trailing
                     horizontalIndex = (horizontalIndex + 1) % 3
                     impactHeavy.impactOccurred()
                     flashPositionIndicator()
-                } else if value.translation.width > threshold {
+                } else {
                     // 右滑（手指向右） - 新视图从左侧滑入
                     lastTransitionDirection = .leading
                     horizontalIndex = (horizontalIndex - 1 + 3) % 3
